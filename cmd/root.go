@@ -13,8 +13,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Version is set at build time via ldflags.
-var Version = "dev"
+// Build-time variables, set via ldflags.
+var (
+	Version = "dev"
+	Commit  = "dev"
+	Date    = "unknown"
+)
 
 // Exit codes.
 const (
