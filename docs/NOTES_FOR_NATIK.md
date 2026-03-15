@@ -3,7 +3,7 @@
 ## Status
 
 **Started:** 2026-03-15
-**Current phase:** Wave 1 — Bootstrap and foundational work
+**Current phase:** Wave 6 — Rate limiting, e2e tests, polish, docs
 
 ## Progress Log
 
@@ -45,6 +45,28 @@
 - Version injected via ldflags at build time
 - Makefile for build, test, vet targets
 
+## Review Findings (addressed)
+
+- **PR #14 (fetch)**: Path traversal vulnerability in attachment downloads — fixed with `filepath.Base()`
+- **PR #14 (fetch)**: `--with-attachments` silently failed on cache hits — fixed by bypassing cache when attachments requested
+- **PR #15 (fetch-thread)**: Same path traversal vulnerability — fixed
+- **PR #15 (fetch-thread)**: Thread emails had empty body content (missing properties in Email/get) — fixed by reusing shared `emailProperties`
+- **PR #15 (fetch-thread)**: Variable naming conflict with PR #14 — renamed to `threadWithAttachments`
+- **GitHub Dependabot**: 9 dependency vulnerabilities flagged (3 high, 6 moderate) — will address in architecture review
+
 ## Completed Tasks
 
-_(will be updated as tasks are merged)_
+| Task | PR | Status |
+|------|-----|--------|
+| 01 - Bootstrap Go project | #2 | Merged |
+| 02 - Configuration and auth | #3 | Merged |
+| 03 - JMAP session and client | #5 | Merged |
+| 04 - JMAP types and email models | #4 | Merged |
+| 05 - Email query and get | #10 | Merged |
+| 06 - Mailbox and thread operations | #11 | Merged |
+| 07 - Output formatters | #8 | Merged |
+| 08 - Markdown cache | #9 | Merged |
+| 09 - Search command | #13 | Merged |
+| 10 - Fetch command | #14 | Merged (review fixes applied) |
+| 11 - Mailboxes command | #12 | Merged |
+| 12 - Fetch-thread command | #15 | Merged (review fixes applied) |
