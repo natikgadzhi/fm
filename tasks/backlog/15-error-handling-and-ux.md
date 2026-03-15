@@ -11,7 +11,9 @@ Review and improve error handling, add debug mode, and polish the user experienc
 ## Acceptance Criteria
 
 - [ ] All error messages are clear and actionable:
-  - Auth errors: "FM_API_TOKEN not set. Get an API token at https://www.fastmail.com/settings/security/tokens"
+  - No token: "No API token found. Run 'fm auth login' or set FM_API_TOKEN. Create a token at https://app.fastmail.com/settings/security/tokens/new"
+  - Invalid token (401): "Authentication failed. Your API token may be revoked or invalid. Run 'fm auth login' to set a new token."
+  - Keychain unavailable: "Could not access system keychain. Set FM_API_TOKEN environment variable instead."
   - Network errors: "Failed to connect to Fastmail API. Check your internet connection."
   - Not found: "Email M123 not found. Verify the message ID is correct."
 - [ ] `--verbose` flag adds detailed logging to stderr:

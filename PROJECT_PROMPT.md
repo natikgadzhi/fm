@@ -8,11 +8,30 @@ A read-only CLI tool for searching and fetching email from Fastmail via the JMAP
 
 ## Authentication
 
-- Fastmail API tokens are used for authentication
+Fastmail API tokens (format: `fmu1-...`) are used for authentication via Bearer auth. Tokens are created at [Fastmail Settings → Privacy & Security → API tokens](https://app.fastmail.com/settings/security/tokens/new) with scoped permissions. For `fm`, users should create a **read-only** token with **JMAP Core** + **Mail** scopes.
+
+### Token Resolution Order
+
+The CLI resolves the API token from these sources, in priority order:
+
+1. `--token` flag — for one-off usage or scripts
+2. `FM_API_TOKEN` environment variable — for shell sessions, CI, dotfiles
+3. OS keychain — secure default for interactive use (macOS Keychain, Linux Secret Service/GNOME Keyring, Windows Credential Manager)
+
+If no token is found, the CLI prints an actionable error directing the user to `fm auth login` or the Fastmail settings page.
+
+### Auth Commands
+
+- `fm auth login` — prompts for API token and stores it in the OS keychain
+- `fm auth status` — shows current auth state (authenticated user, token source)
+- `fm auth logout` — removes the stored token from the OS keychain
+
+### Session Discovery
+
 - The JMAP session endpoint is `https://api.fastmail.com/jmap/session`
 - Tokens are passed via the `Authorization: Bearer {token}` header
-- Token storage: support `FM_API_TOKEN` environment variable, and optionally macOS Keychain / system credential store
-- The session response provides the API URL, account IDs, and capability information
+- The session response provides the API URL (`apiUrl`), account IDs (format `u12345678`), and capability information
+- The session is cached in memory for the lifetime of a single CLI invocation
 
 ## Core Commands
 
@@ -111,7 +130,7 @@ Email body content here...
 ## Configuration
 
 Configuration is minimal and environment-driven:
-- `FM_API_TOKEN` — Fastmail API token (required)
+- `FM_API_TOKEN` — Fastmail API token (falls back to OS keychain if not set)
 - `FM_CACHE_DIR` — Cache directory (optional, default `~/.local/share/fm/cache/`)
 - `FM_OUTPUT` — Default output format (optional, default `text`)
 

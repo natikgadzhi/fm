@@ -11,7 +11,7 @@ Implement the core JMAP client that handles session discovery, authentication, a
 ## Acceptance Criteria
 
 - [ ] `internal/jmap/client.go` implements a `Client` struct with:
-  - `NewClient(token string, opts ...Option)` constructor
+  - `NewClient(token string, opts ...Option)` constructor (token comes from `auth.ResolveToken`)
   - `Discover()` method — fetches JMAP session from `https://api.fastmail.com/jmap/session`
   - `Do(request)` method — executes a JMAP request and returns the response
   - Account ID extraction from session
@@ -33,3 +33,5 @@ Implement the core JMAP client that handles session discovery, authentication, a
 - Use `git.sr.ht/~rockorager/go-jmap` as the foundation
 - The go-jmap library handles much of the JMAP protocol details — wrap it with our retry/backoff logic
 - Store the discovered session for reuse within the client's lifetime
+- Token is resolved by `internal/auth` before constructing the client — this package only needs the token string
+- `fm auth status` will use `Discover()` to validate the token works

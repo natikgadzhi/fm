@@ -20,10 +20,15 @@ Create a comprehensive end-to-end test suite using a mock JMAP server.
   - `fm mailboxes` → all mailboxes listed
   - `fm fetch-thread` → all thread emails fetched and cached
 - [ ] Error scenario tests:
-  - Invalid/missing API token → clear error message
+  - No token anywhere (no flag, no env, no keychain) → actionable error with setup instructions
+  - Invalid API token → clear auth failure message
   - Network timeout → retry + error
   - Rate limited → backoff + partial results
   - Invalid email ID → clear error
+- [ ] Auth flow tests:
+  - `fm auth login` → token stored in keychain → subsequent commands use it
+  - `fm auth status` → shows correct token source
+  - `fm auth logout` → token removed → commands fail with auth error
 - [ ] Output format tests:
   - Each command with `-o text`, `-o json`, `-o markdown`
   - Verify JSON is valid, Markdown is well-formed

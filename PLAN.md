@@ -5,7 +5,8 @@
 ```
 fm/
 ├── cmd/                    # CLI entry points (cobra commands)
-│   ├── root.go             # Root command, global flags (-o, --cache-dir, --timeout)
+│   ├── root.go             # Root command, global flags (-o, --cache-dir, --timeout, --token)
+│   ├── auth.go             # fm auth login|status|logout
 │   ├── search.go           # fm search <query>
 │   ├── fetch.go            # fm fetch <message-id>
 │   ├── fetch_thread.go     # fm fetch-thread <thread-id>
@@ -33,6 +34,9 @@ fm/
 │   │   ├── text.go         # Human-readable table output
 │   │   ├── json.go         # JSON output
 │   │   └── markdown.go     # Markdown output
+│   ├── auth/               # Token resolution and storage
+│   │   ├── auth.go         # Token resolution (flag → env → keychain)
+│   │   └── auth_test.go
 │   └── config/             # Configuration loading
 │       ├── config.go       # Env vars, defaults
 │       └── config_test.go
@@ -52,6 +56,7 @@ fm/
 - **YAML frontmatter**: `github.com/adrg/frontmatter` — parse/render YAML frontmatter in Markdown files
 - **Table output**: `github.com/olekukonez/tablewriter` or simple fmt-based formatting
 - **Progress indicators**: `github.com/schollz/progressbar/v3` or similar
+- **Keychain**: `github.com/zalando/go-keyring` — cross-platform OS keychain (macOS Keychain, Linux Secret Service, Windows Credential Manager), no C bindings needed
 
 ## Phases & Tasks
 
@@ -59,17 +64,19 @@ fm/
 
 **Task 01 — Bootstrap Go project**
 - Initialize Go module (`go mod init github.com/natikgadzhi/fm`)
-- Create directory structure: `cmd/`, `internal/jmap/`, `internal/cache/`, `internal/output/`, `internal/config/`
+- Create directory structure: `cmd/`, `internal/jmap/`, `internal/auth/`, `internal/cache/`, `internal/output/`, `internal/config/`
 - Add `main.go` with cobra root command
-- Add global flags: `-o`/`--output`, `--cache-dir`, `--timeout`
+- Add global flags: `-o`/`--output`, `--cache-dir`, `--timeout`, `--token`
 - Verify: `go build ./...` succeeds
 - Acceptance: running `fm --help` shows usage with all global flags
 
 **Task 02 — Configuration and auth**
-- Implement `internal/config/config.go`: load `FM_API_TOKEN`, `FM_CACHE_DIR`, `FM_OUTPUT` from environment
-- Validate token is present, return clear error if missing
+- Implement `internal/config/config.go`: load `FM_CACHE_DIR`, `FM_OUTPUT` from environment
+- Implement `internal/auth/auth.go`: token resolution chain (flag → `FM_API_TOKEN` env → OS keychain via `zalando/go-keyring`)
+- Implement `cmd/auth.go`: `fm auth login` (prompt + keychain store), `fm auth status`, `fm auth logout`
 - Provide defaults for cache dir (`~/.local/share/fm/cache/`) and output format (`text`)
-- Unit tests for config loading with various env combinations
+- Clear error if no token found: "No API token found. Run 'fm auth login' or set FM_API_TOKEN. Create a token at https://app.fastmail.com/settings/security/tokens/new"
+- Unit tests for config loading and token resolution (using `go-keyring` MockInit for keychain tests)
 
 ### Phase 1: Core — JMAP Client
 
@@ -229,3 +236,7 @@ Phase 4:              [15-error-handling]
 5. **Filter parsing** — Parse Gmail-style filter syntax (`from:`, `to:`, `subject:`, etc.) into JMAP `FilterCondition` objects. Free text maps to JMAP's `text` filter.
 
 6. **Partial results on rate limit** — If a batch fetch hits 429 mid-way, return everything fetched so far along with a warning, rather than failing the entire operation.
+
+7. **Token resolution chain** — `--token` flag → `FM_API_TOKEN` env var → OS keychain (`zalando/go-keyring`). Environment variable is the simplest path; OS keychain is the secure default for interactive use. No config files with plaintext tokens.
+
+8. **zalando/go-keyring for keychain** — No C bindings (important for static binary distribution), simple `Get`/`Set`/`Delete` API, built-in `MockInit()` for tests. Supports macOS Keychain, Linux Secret Service (GNOME Keyring), and Windows Credential Manager.

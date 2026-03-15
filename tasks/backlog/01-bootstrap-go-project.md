@@ -11,12 +11,13 @@ Initialize the Go project with the full directory structure, cobra root command,
 ## Acceptance Criteria
 
 - [ ] `go.mod` exists with module `github.com/natikgadzhi/fm`
-- [ ] Directory structure created: `cmd/`, `internal/jmap/`, `internal/cache/`, `internal/output/`, `internal/config/`
+- [ ] Directory structure created: `cmd/`, `internal/jmap/`, `internal/auth/`, `internal/cache/`, `internal/output/`, `internal/config/`
 - [ ] `main.go` exists and calls cobra root command
 - [ ] `cmd/root.go` defines the root command with:
   - `-o` / `--output` flag (values: `text`, `json`, `markdown`; default: `text`)
   - `--cache-dir` flag (default: empty, resolved later from config)
   - `--timeout` flag (default: `30s`)
+  - `--token` flag (override token for this invocation)
 - [ ] `go build ./...` succeeds
 - [ ] `go vet ./...` passes
 - [ ] Running `fm --help` prints usage with all global flags
