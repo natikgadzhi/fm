@@ -57,15 +57,11 @@ func runFetch(cmd *cobra.Command, args []string) error {
 	c := cache.NewCache(cfg.CacheDir)
 
 	// Try the cache first (unless --no-cache).
-	if !fetchNoCache {
+	// When --with-attachments is requested, skip the cache because cached
+	// emails do not store attachment metadata (HasAttachment, Attachments
+	// are empty), so we must always fetch from the API to get blob IDs.
+	if !fetchNoCache && !fetchWithAttachments {
 		if cached, err := c.Get(emailID); err == nil && cached != nil {
-			// If --with-attachments, we still need to download them.
-			if fetchWithAttachments && cached.HasAttachment && len(cached.Attachments) > 0 {
-				if dlErr := downloadAttachments(cmd, cfg, *cached); dlErr != nil {
-					return dlErr
-				}
-			}
-
 			out, err := formatter.FormatEmail(*cached)
 			if err != nil {
 				return fmt.Errorf("formatting email: %w", err)
@@ -149,7 +145,11 @@ func downloadAttachments(cmd *cobra.Command, cfg *config.Config, email jmap.Emai
 			continue
 		}
 
-		path := filepath.Join(attachDir, name)
+		// Sanitize the filename to prevent path traversal attacks.
+		// A malicious name like "../../../etc/passwd" would otherwise
+		// write outside the intended cache directory.
+		safeName := filepath.Base(name)
+		path := filepath.Join(attachDir, safeName)
 		if err := os.WriteFile(path, data, 0o644); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to save attachment %q: %v\n", name, err)
 			continue
