@@ -542,6 +542,54 @@ func runFMNoToken(t *testing.T, mock *mockJMAP, args ...string) (stdout, stderr 
 }
 
 // ---------------------------------------------------------------------------
+// Auth check command tests
+// ---------------------------------------------------------------------------
+
+func TestAuthCheckSuccess(t *testing.T) {
+	mock := newMockJMAP()
+	defer mock.Close()
+
+	stdout, _, err := runFM(t, mock, "auth", "check")
+	if err != nil {
+		t.Fatalf("auth check command failed: %v", err)
+	}
+
+	if !strings.Contains(stdout, "Token source:") {
+		t.Error("auth check output should contain token source")
+	}
+	if !strings.Contains(stdout, "Token:") {
+		t.Error("auth check output should contain masked token")
+	}
+	if !strings.Contains(stdout, "Account ID:") {
+		t.Error("auth check output should contain account ID")
+	}
+	if !strings.Contains(stdout, "u12345") {
+		t.Error("auth check output should contain the account ID value")
+	}
+	if !strings.Contains(stdout, "Username:") {
+		t.Error("auth check output should contain username")
+	}
+	if !strings.Contains(stdout, "test@fastmail.com") {
+		t.Error("auth check output should contain the username value")
+	}
+}
+
+func TestAuthCheckFailure(t *testing.T) {
+	mock := newMockJMAP()
+	mock.failAuth = true
+	defer mock.Close()
+
+	_, stderr, err := runFM(t, mock, "auth", "check")
+	if err == nil {
+		t.Fatal("expected error when authentication fails")
+	}
+
+	if !strings.Contains(stderr, "authentication failed") && !strings.Contains(stderr, "Authentication failed") {
+		t.Errorf("error should mention authentication failure, got: %s", stderr)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Search command tests
 // ---------------------------------------------------------------------------
 
