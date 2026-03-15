@@ -1,5 +1,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-LDFLAGS := -ldflags "-X github.com/natikgadzhi/fm/cmd.Version=$(VERSION)"
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "dev")
+DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS := -ldflags "-X github.com/natikgadzhi/fm/cmd.Version=$(VERSION) -X github.com/natikgadzhi/fm/cmd.Commit=$(COMMIT) -X github.com/natikgadzhi/fm/cmd.Date=$(DATE)"
 
 .PHONY: build test vet clean e2e
 
