@@ -75,7 +75,7 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	}
 
 	// 2. Create JMAP client.
-	client := jmap.NewClient(tok, jmap.WithTimeout(timeout))
+	client := jmap.NewClient(tok, clientOpts()...)
 
 	// 3. Parse query string into SearchFilter.
 	query := strings.Join(args, " ")

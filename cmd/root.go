@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/natikgadzhi/fm/internal/jmap"
 	"github.com/spf13/cobra"
 )
 
@@ -16,6 +17,7 @@ var (
 	cacheDir     string
 	timeout      time.Duration
 	token        string
+	endpoint     string
 )
 
 var rootCmd = &cobra.Command{
@@ -41,6 +43,18 @@ func init() {
 		"HTTP request timeout")
 	rootCmd.PersistentFlags().StringVar(&token, "token", "",
 		"Fastmail API token (overrides env and keychain)")
+	rootCmd.PersistentFlags().StringVar(&endpoint, "endpoint", "",
+		"Override JMAP session endpoint URL (for testing)")
+	rootCmd.PersistentFlags().MarkHidden("endpoint")
+}
+
+// clientOpts returns the common JMAP client options derived from global flags.
+func clientOpts() []jmap.Option {
+	opts := []jmap.Option{jmap.WithTimeout(timeout)}
+	if endpoint != "" {
+		opts = append(opts, jmap.WithBaseURL(endpoint))
+	}
+	return opts
 }
 
 // Execute runs the root command.

@@ -45,7 +45,7 @@ func runFetchThread(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("resolving token: %w", err)
 	}
 
-	client := jmap.NewClient(tok, jmap.WithTimeout(timeout))
+	client := jmap.NewClient(tok, clientOpts()...)
 	ctx := cmd.Context()
 
 	if err := client.Discover(); err != nil {
