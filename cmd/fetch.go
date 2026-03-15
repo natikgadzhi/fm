@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"github.com/natikgadzhi/fm/internal/config"
 	"github.com/natikgadzhi/fm/internal/jmap"
 	"github.com/natikgadzhi/fm/internal/output"
+	"github.com/natikgadzhi/fm/internal/verbose"
 	"github.com/spf13/cobra"
 )
 
@@ -63,6 +63,7 @@ func runFetch(cmd *cobra.Command, args []string) error {
 	// are empty), so we must always fetch from the API to get blob IDs.
 	if !fetchNoCache && !fetchWithAttachments {
 		if cached, err := c.Get(emailID); err == nil && cached != nil {
+			verbose.Log("cache hit for email %s", emailID)
 			out, err := formatter.FormatEmail(*cached)
 			if err != nil {
 				return fmt.Errorf("formatting email: %w", err)
@@ -70,6 +71,7 @@ func runFetch(cmd *cobra.Command, args []string) error {
 			fmt.Fprint(cmd.OutOrStdout(), out)
 			return nil
 		}
+		verbose.Log("cache miss for email %s", emailID)
 	}
 
 	// Resolve token and create JMAP client.
@@ -80,7 +82,7 @@ func runFetch(cmd *cobra.Command, args []string) error {
 
 	client := jmap.NewClient(tok, clientOpts()...)
 
-	ctx := context.Background()
+	ctx := cmd.Context()
 	emails, err := client.GetEmails(ctx, []string{emailID})
 
 	// Check for partial results.
@@ -93,7 +95,7 @@ func runFetch(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(emails) == 0 {
-		return fmt.Errorf("email not found: %s", emailID)
+		return fmt.Errorf("email %q not found. Verify the message ID is correct", emailID)
 	}
 
 	email := emails[0]
@@ -134,7 +136,7 @@ func downloadAttachments(cmd *cobra.Command, cfg *config.Config, email jmap.Emai
 		return fmt.Errorf("getting account ID for attachment download: %w", err)
 	}
 
-	ctx := context.Background()
+	ctx := cmd.Context()
 	attachDir := filepath.Join(cfg.CacheDir, "attachments", email.Id)
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		return fmt.Errorf("creating attachment directory: %w", err)

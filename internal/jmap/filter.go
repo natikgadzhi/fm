@@ -1,6 +1,7 @@
 package jmap
 
 import (
+	"fmt"
 	"strings"
 	"time"
 )
@@ -21,12 +22,12 @@ var knownKeywords = []string{"from:", "to:", "subject:", "in:", "before:", "afte
 //	after:2025-01-01           → SearchFilter.After
 //	has:attachment              → SearchFilter.HasAttachment = true
 //	<anything else>            → SearchFilter.Text (free text search)
-func ParseFilterQuery(query string) SearchFilter {
+func ParseFilterQuery(query string) (SearchFilter, error) {
 	var filter SearchFilter
 
 	query = strings.TrimSpace(query)
 	if query == "" {
-		return filter
+		return filter, nil
 	}
 
 	// We tokenize the query by splitting on spaces, then reassemble values
@@ -63,15 +64,19 @@ func ParseFilterQuery(query string) SearchFilter {
 
 		case strings.HasPrefix(lower, "before:"):
 			dateStr := token[len("before:"):]
-			if t, err := time.Parse("2006-01-02", dateStr); err == nil {
-				filter.Before = &t
+			t, err := time.Parse("2006-01-02", dateStr)
+			if err != nil {
+				return filter, fmt.Errorf("invalid date format for before: %q (expected YYYY-MM-DD)", dateStr)
 			}
+			filter.Before = &t
 
 		case strings.HasPrefix(lower, "after:"):
 			dateStr := token[len("after:"):]
-			if t, err := time.Parse("2006-01-02", dateStr); err == nil {
-				filter.After = &t
+			t, err := time.Parse("2006-01-02", dateStr)
+			if err != nil {
+				return filter, fmt.Errorf("invalid date format for after: %q (expected YYYY-MM-DD)", dateStr)
 			}
+			filter.After = &t
 
 		case strings.HasPrefix(lower, "has:"):
 			value := strings.ToLower(token[len("has:"):])
@@ -88,7 +93,7 @@ func ParseFilterQuery(query string) SearchFilter {
 		filter.Text = strings.Join(freeText, " ")
 	}
 
-	return filter
+	return filter, nil
 }
 
 // isKeyword reports whether the token starts with a known filter keyword prefix.

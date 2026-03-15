@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -79,13 +78,16 @@ func runSearch(cmd *cobra.Command, args []string) error {
 
 	// 3. Parse query string into SearchFilter.
 	query := strings.Join(args, " ")
-	filter := jmap.ParseFilterQuery(query)
+	filter, err := jmap.ParseFilterQuery(query)
+	if err != nil {
+		return fmt.Errorf("invalid search query: %w", err)
+	}
 
 	// 4. Merge CLI flags into filter (flags override query string).
 	filter = MergeFilterFlags(filter, searchFrom, searchTo, searchHasAttachment)
 
-	// 5. Call SearchEmails.
-	ctx := context.Background()
+	// 5. Call SearchEmails using the command context (supports Ctrl+C cancellation).
+	ctx := cmd.Context()
 	emails, err := client.SearchEmails(ctx, filter, searchLimit)
 
 	// Check for partial results — display what we got with a warning.
