@@ -16,7 +16,8 @@ Implement Email/query and Email/get JMAP operations, including chained requests 
   - `SearchEmails(ctx, filter SearchFilter, limit int) ([]Email, error)` — chains query+get in a single JMAP request using result references
 - [ ] Result references work correctly — `Email/get` references `Email/query` result IDs
 - [ ] Handles pagination when results exceed limit
-- [ ] Properties requested: Id, ThreadId, MessageId, From, To, Cc, Subject, Date, Preview, TextBody, HtmlBody, MailboxIds
+- [ ] Properties requested: Id, ThreadId, MessageId, From, To, Cc, Subject, Date, Preview, TextBody, HtmlBody, MailboxIds, Attachments, HasAttachment
+- [ ] `DownloadAttachment(ctx, accountId, blobId, name string) ([]byte, error)` — downloads a blob via JMAP download URL
 - [ ] Unit tests with mock JMAP responses:
   - Search returning multiple results
   - Search returning zero results

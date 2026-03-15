@@ -16,6 +16,8 @@ Define Go types for emails, mailboxes, threads, and search filters.
   - `Mailbox` struct: Id, Name, Role, TotalEmails, UnreadEmails, ParentId
   - `Thread` struct: Id, EmailIds
   - `SearchFilter` struct: From, To, Subject, Text, InMailbox, Before, After, HasAttachment
+  - `Attachment` struct: BlobId, Name, Type, Size, Charset (for use in Email.Attachments)
+- [ ] `Email` struct includes `Attachments []Attachment` field (populated from JMAP `attachments` property)
 - [ ] Types map correctly to/from JMAP JSON (using go-jmap's type system if applicable)
 - [ ] `ParseFilterQuery(query string) SearchFilter` — parses `from:foo to:bar subject:hello some text` into a `SearchFilter`
 - [ ] Unit tests for:

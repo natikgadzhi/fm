@@ -12,6 +12,7 @@ Implement the `fm fetch-thread <thread-id>` CLI command.
 
 - [ ] `cmd/fetch_thread.go` registers a `fetch-thread` subcommand on the root command
 - [ ] Takes a single positional arg: the JMAP thread ID
+- [ ] Supports `--with-attachments` flag to download attachments for all emails in the thread (same behavior as `fm fetch --with-attachments`)
 - [ ] Fetches thread metadata, then all emails in the thread
 - [ ] Caches each email individually
 - [ ] Displays all emails in chronological order

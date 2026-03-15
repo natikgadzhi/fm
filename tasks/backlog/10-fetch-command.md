@@ -13,6 +13,10 @@ Implement the `fm fetch <message-id>` CLI command.
 - [ ] `cmd/fetch.go` registers a `fetch` subcommand on the root command
 - [ ] Takes a single positional arg: the JMAP email ID
 - [ ] Supports `--no-cache` flag to bypass cache
+- [ ] Supports `--with-attachments` flag to download email attachments:
+  - Downloads each attachment blob via JMAP download endpoint
+  - Saves attachments to `{cache-dir}/attachments/{email-id}/{filename}`
+  - Lists downloaded attachment paths in output
 - [ ] Default behavior:
   1. Check cache for the email
   2. If cached, read from cache and display

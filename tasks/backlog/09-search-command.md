@@ -13,6 +13,10 @@ Implement the `fm search <query>` CLI command.
 - [ ] `cmd/search.go` registers a `search` subcommand on the root command
 - [ ] Takes positional args as the search query (joined with spaces)
 - [ ] Supports `--limit N` flag (default: 25)
+- [ ] Supports `--from <email>` flag — filter by sender email address
+- [ ] Supports `--to <email>` flag — filter by recipient email address
+- [ ] Supports `--has-attachments` flag — filter to only emails with attachments
+- [ ] CLI flags (`--from`, `--to`, `--has-attachments`) are merged with any inline query syntax (e.g. `from:` in the query string)
 - [ ] Parses query string into JMAP filters using `ParseFilterQuery`
 - [ ] Calls `SearchEmails` and formats output with the configured formatter
 - [ ] Outputs results to stdout
@@ -26,5 +30,7 @@ Implement the `fm search <query>` CLI command.
 ## Notes
 
 - Example usage: `fm search "from:boss@company.com subject:urgent after:2025-01-01"`
+- Example usage: `fm search --from boss@company.com --has-attachments`
 - Example usage: `fm search meeting notes`
+- CLI flags and query string filters can be combined: `fm search --from alice@example.com "subject:report"`
 - The search always hits the API (no cache involvement)
