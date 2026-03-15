@@ -106,7 +106,7 @@ func (c *Client) GetEmails(ctx context.Context, ids []string) ([]Email, error) {
 
 	for _, inv := range resp.Responses {
 		if gr, ok := inv.Args.(*email.GetResponse); ok {
-			return mapEmails(gr.List, gr), nil
+			return mapEmails(gr.List), nil
 		}
 	}
 
@@ -218,7 +218,7 @@ func (c *Client) SearchEmails(ctx context.Context, filter SearchFilter, limit in
 	// Find the Email/get response (second invocation).
 	for _, inv := range resp.Responses {
 		if gr, ok := inv.Args.(*email.GetResponse); ok {
-			return mapEmails(gr.List, gr), nil
+			return mapEmails(gr.List), nil
 		}
 	}
 
@@ -288,8 +288,7 @@ func toFilterCondition(f SearchFilter) *email.FilterCondition {
 }
 
 // mapEmails converts a slice of go-jmap email.Email objects to our Email type.
-// The GetResponse is needed to access bodyValues for extracting body content.
-func mapEmails(src []*email.Email, gr *email.GetResponse) []Email {
+func mapEmails(src []*email.Email) []Email {
 	result := make([]Email, 0, len(src))
 	for _, e := range src {
 		result = append(result, mapEmail(e))
@@ -313,9 +312,11 @@ func mapEmail(e *email.Email) Email {
 		em.MessageId = e.MessageID[0]
 	}
 
-	// Date — use SentAt if available.
+	// Date — prefer SentAt, fall back to ReceivedAt.
 	if e.SentAt != nil {
 		em.Date = *e.SentAt
+	} else if e.ReceivedAt != nil {
+		em.Date = *e.ReceivedAt
 	}
 
 	// From addresses.

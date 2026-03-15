@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -112,15 +111,9 @@ func exitCode(err error) int {
 		return ExitSuccess
 	}
 
-	// Check if this is an auth error (exit code 2).
 	var authErr *auth.AuthError
 	if errors.As(err, &authErr) {
 		return ExitAuthError
-	}
-
-	// Check if the context was cancelled (e.g. Ctrl+C).
-	if errors.Is(err, context.Canceled) {
-		return ExitError
 	}
 
 	return ExitError
