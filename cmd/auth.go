@@ -1,0 +1,113 @@
+package cmd
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/natikgadzhi/fm/internal/auth"
+	"github.com/spf13/cobra"
+	"golang.org/x/term"
+)
+
+var authCmd = &cobra.Command{
+	Use:   "auth",
+	Short: "Manage API token authentication",
+	Long:  "Commands for logging in, checking status, and logging out of Fastmail.",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cmd.Help()
+	},
+}
+
+var authLoginCmd = &cobra.Command{
+	Use:   "login",
+	Short: "Store a Fastmail API token in the OS keychain",
+	Long: `Prompts for a Fastmail API token and stores it in the OS keychain.
+
+Create a token at https://app.fastmail.com/settings/security/tokens/new
+The token should start with "fmu1-".`,
+	RunE: runAuthLogin,
+}
+
+var authStatusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Show the current authentication status",
+	Long:  "Resolves the API token and shows its source and a masked value.",
+	RunE:  runAuthStatus,
+}
+
+var authLogoutCmd = &cobra.Command{
+	Use:   "logout",
+	Short: "Remove the API token from the OS keychain",
+	Long:  "Deletes the stored API token from the OS keychain.",
+	RunE:  runAuthLogout,
+}
+
+func init() {
+	rootCmd.AddCommand(authCmd)
+	authCmd.AddCommand(authLoginCmd)
+	authCmd.AddCommand(authStatusCmd)
+	authCmd.AddCommand(authLogoutCmd)
+}
+
+func runAuthLogin(cmd *cobra.Command, args []string) error {
+	fmt.Print("Enter Fastmail API token: ")
+
+	var tokenInput string
+	// If stdin is a terminal, use secure (no-echo) reading.
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		raw, err := term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			return fmt.Errorf("reading token: %w", err)
+		}
+		tokenInput = string(raw)
+		fmt.Println() // newline after hidden input
+	} else {
+		// Non-terminal (piped input) — read a line.
+		scanner := bufio.NewScanner(os.Stdin)
+		if scanner.Scan() {
+			tokenInput = scanner.Text()
+		}
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("reading token: %w", err)
+		}
+	}
+
+	tokenInput = strings.TrimSpace(tokenInput)
+	if tokenInput == "" {
+		return fmt.Errorf("no token provided")
+	}
+
+	// Soft format validation.
+	if !strings.HasPrefix(tokenInput, auth.TokenPrefix) {
+		fmt.Fprintf(os.Stderr, "Warning: token does not start with %q — it may not be a valid Fastmail API token.\n", auth.TokenPrefix)
+	}
+
+	if err := auth.StoreToken(tokenInput); err != nil {
+		return fmt.Errorf("storing token in keychain: %w", err)
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "Token stored in OS keychain. Masked: %s\n", auth.MaskToken(tokenInput))
+	return nil
+}
+
+func runAuthStatus(cmd *cobra.Command, args []string) error {
+	tok, source, err := auth.ResolveToken(token)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "Token source: %s\n", source)
+	fmt.Fprintf(cmd.OutOrStdout(), "Token:        %s\n", auth.MaskToken(tok))
+	return nil
+}
+
+func runAuthLogout(cmd *cobra.Command, args []string) error {
+	if err := auth.DeleteToken(); err != nil {
+		return fmt.Errorf("removing token from keychain: %w", err)
+	}
+
+	fmt.Fprintln(cmd.OutOrStdout(), "Token removed from OS keychain.")
+	return nil
+}
