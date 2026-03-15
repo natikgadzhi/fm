@@ -2,13 +2,16 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/cache"
 	"github.com/natikgadzhi/fm/internal/jmap"
+	"github.com/zalando/go-keyring"
 )
 
 func TestFetchCommandRegistered(t *testing.T) {
@@ -110,6 +113,9 @@ func TestFetchCacheHit(t *testing.T) {
 }
 
 func TestFetchNoCacheSkipsCache(t *testing.T) {
+	// Use mock keyring so no real keychain token interferes.
+	keyring.MockInit()
+
 	// Create a temporary cache directory with a cached email.
 	tmpDir := t.TempDir()
 	c := cache.NewCache(tmpDir)
@@ -141,20 +147,25 @@ func TestFetchNoCacheSkipsCache(t *testing.T) {
 	cacheDir = tmpDir
 	outputFormat = "text"
 	fetchNoCache = true
-	token = "" // No token — this should fail because --no-cache requires API access.
+	token = ""
+	t.Setenv("FM_API_TOKEN", "")
 
 	err := runFetch(fetchCmd, []string{"M99999"})
 	if err == nil {
 		t.Fatal("expected error when --no-cache is set and no token is available")
 	}
 
-	// The error should be about missing token, not about cache.
-	if err.Error() != "No API token found. Run 'fm auth login' or set FM_API_TOKEN. Create a token at https://app.fastmail.com/settings/security/tokens/new" {
-		t.Errorf("unexpected error: %v", err)
+	// The error should be an auth error (missing token).
+	var authErr *auth.AuthError
+	if !errors.As(err, &authErr) {
+		t.Errorf("expected AuthError, got: %v", err)
 	}
 }
 
 func TestFetchEmailNotCached(t *testing.T) {
+	// Use mock keyring so no real keychain token interferes.
+	keyring.MockInit()
+
 	// When the email is not in cache and no token is available,
 	// the command should fail with a token error.
 	tmpDir := t.TempDir()
@@ -174,6 +185,7 @@ func TestFetchEmailNotCached(t *testing.T) {
 	outputFormat = "text"
 	fetchNoCache = false
 	token = ""
+	t.Setenv("FM_API_TOKEN", "")
 
 	err := runFetch(fetchCmd, []string{"Mnonexistent"})
 	if err == nil {
