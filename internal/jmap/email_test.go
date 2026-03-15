@@ -3,6 +3,7 @@ package jmap
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -571,6 +572,150 @@ func emailGetResponse(emails []map[string]any) map[string]any {
 			},
 		},
 		"sessionState": "abc123",
+	}
+}
+
+func TestGetEmailsBatchedSingleBatch(t *testing.T) {
+	server := newTestServer(t, func(t *testing.T, req map[string]any) map[string]any {
+		return emailGetResponse([]map[string]any{
+			{
+				"id": "msg-001", "threadId": "t1", "subject": "First",
+				"from": []map[string]any{{"name": "A", "email": "a@test.com"}},
+				"to": []map[string]any{}, "sentAt": "2025-01-15T10:00:00Z",
+				"textBody": []map[string]any{}, "htmlBody": []map[string]any{},
+				"bodyValues": map[string]any{}, "mailboxIds": map[string]any{},
+				"hasAttachment": false, "size": 100,
+			},
+			{
+				"id": "msg-002", "threadId": "t2", "subject": "Second",
+				"from": []map[string]any{{"name": "B", "email": "b@test.com"}},
+				"to": []map[string]any{}, "sentAt": "2025-01-15T11:00:00Z",
+				"textBody": []map[string]any{}, "htmlBody": []map[string]any{},
+				"bodyValues": map[string]any{}, "mailboxIds": map[string]any{},
+				"hasAttachment": false, "size": 200,
+			},
+		})
+	})
+	defer server.Close()
+
+	c := newTestClient(server)
+
+	var progressCount int
+	emails, err := c.GetEmailsBatched(context.Background(), []string{"msg-001", "msg-002"}, 50, func() {
+		progressCount++
+	})
+	if err != nil {
+		t.Fatalf("GetEmailsBatched() failed: %v", err)
+	}
+
+	if len(emails) != 2 {
+		t.Fatalf("expected 2 emails, got %d", len(emails))
+	}
+	if progressCount != 2 {
+		t.Errorf("expected progress callback called 2 times, got %d", progressCount)
+	}
+}
+
+func TestGetEmailsBatchedEmptyIDs(t *testing.T) {
+	c := NewClient("test-token")
+	emails, err := c.GetEmailsBatched(context.Background(), []string{}, 10, nil)
+	if err != nil {
+		t.Fatalf("GetEmailsBatched() with empty IDs should not fail: %v", err)
+	}
+	if emails != nil {
+		t.Errorf("expected nil for empty IDs, got %v", emails)
+	}
+}
+
+func TestGetEmailsBatchedPartialFailure(t *testing.T) {
+	var callCount int
+	mux := http.NewServeMux()
+	server := httptest.NewUnstartedServer(mux)
+	server.Start()
+	defer server.Close()
+
+	mux.HandleFunc("/jmap/session", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(sessionJSON(server.URL))
+	})
+
+	mux.HandleFunc("/jmap/api", func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		if callCount == 1 {
+			// First batch succeeds.
+			resp := emailGetResponse([]map[string]any{
+				{
+					"id": "msg-001", "threadId": "t1", "subject": "Success",
+					"from": []map[string]any{{"name": "A", "email": "a@test.com"}},
+					"to": []map[string]any{}, "sentAt": "2025-01-15T10:00:00Z",
+					"textBody": []map[string]any{}, "htmlBody": []map[string]any{},
+					"bodyValues": map[string]any{}, "mailboxIds": map[string]any{},
+					"hasAttachment": false, "size": 100,
+				},
+			})
+			data, _ := json.Marshal(resp)
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(data)
+		} else {
+			// Second batch fails with 500.
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("server error"))
+		}
+	})
+
+	c := NewClient("test-token",
+		WithBaseURL(server.URL+"/jmap/session"),
+		WithTimeout(5*time.Second),
+		WithMaxRetries(0), // No retries so we fail fast.
+	)
+
+	_, err := c.GetEmailsBatched(context.Background(), []string{"msg-001", "msg-002"}, 1, nil)
+	if err == nil {
+		t.Fatal("expected error from second batch, got nil")
+	}
+
+	var partialErr *PartialResultError
+	if !errors.As(err, &partialErr) {
+		t.Fatalf("expected PartialResultError, got %T: %v", err, err)
+	}
+
+	if partialErr.Fetched != 1 {
+		t.Errorf("expected 1 fetched email, got %d", partialErr.Fetched)
+	}
+	if partialErr.Total != 2 {
+		t.Errorf("expected 2 total emails, got %d", partialErr.Total)
+	}
+	if len(partialErr.Emails) != 1 {
+		t.Errorf("expected 1 email in partial result, got %d", len(partialErr.Emails))
+	}
+	if partialErr.Emails[0].Id != "msg-001" {
+		t.Errorf("expected partial email ID 'msg-001', got '%s'", partialErr.Emails[0].Id)
+	}
+}
+
+func TestGetEmailsBatchedDefaultBatchSize(t *testing.T) {
+	// Test that passing 0 for batchSize uses DefaultBatchSize.
+	server := newTestServer(t, func(t *testing.T, req map[string]any) map[string]any {
+		return emailGetResponse([]map[string]any{
+			{
+				"id": "msg-001", "threadId": "t1", "subject": "Test",
+				"from": []map[string]any{{"name": "A", "email": "a@test.com"}},
+				"to": []map[string]any{}, "sentAt": "2025-01-15T10:00:00Z",
+				"textBody": []map[string]any{}, "htmlBody": []map[string]any{},
+				"bodyValues": map[string]any{}, "mailboxIds": map[string]any{},
+				"hasAttachment": false, "size": 100,
+			},
+		})
+	})
+	defer server.Close()
+
+	c := newTestClient(server)
+	emails, err := c.GetEmailsBatched(context.Background(), []string{"msg-001"}, 0, nil)
+	if err != nil {
+		t.Fatalf("GetEmailsBatched() with default batch size failed: %v", err)
+	}
+	if len(emails) != 1 {
+		t.Errorf("expected 1 email, got %d", len(emails))
 	}
 }
 

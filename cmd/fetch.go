@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -81,7 +82,13 @@ func runFetch(cmd *cobra.Command, args []string) error {
 
 	ctx := context.Background()
 	emails, err := client.GetEmails(ctx, []string{emailID})
-	if err != nil {
+
+	// Check for partial results.
+	var partialErr *jmap.PartialResultError
+	if errors.As(err, &partialErr) {
+		emails = partialErr.Emails
+		fmt.Fprintf(os.Stderr, "Warning: partial results — %v\n", partialErr.Err)
+	} else if err != nil {
 		return fmt.Errorf("fetching email: %w", err)
 	}
 
