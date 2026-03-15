@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -86,7 +87,14 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	// 5. Call SearchEmails.
 	ctx := context.Background()
 	emails, err := client.SearchEmails(ctx, filter, searchLimit)
-	if err != nil {
+
+	// Check for partial results — display what we got with a warning.
+	var partialErr *jmap.PartialResultError
+	if errors.As(err, &partialErr) {
+		emails = partialErr.Emails
+		fmt.Fprintf(os.Stderr, "Warning: partial results — fetched %d of %d emails: %v\n",
+			partialErr.Fetched, partialErr.Total, partialErr.Err)
+	} else if err != nil {
 		return fmt.Errorf("search failed: %w", err)
 	}
 

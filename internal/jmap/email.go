@@ -113,6 +113,60 @@ func (c *Client) GetEmails(ctx context.Context, ids []string) ([]Email, error) {
 	return nil, fmt.Errorf("Email/get: no get response in server reply")
 }
 
+// DefaultBatchSize is the number of email IDs to fetch per JMAP request
+// when using GetEmailsBatched.
+const DefaultBatchSize = 50
+
+// GetEmailsBatched fetches emails in batches with partial result handling.
+// If some batches succeed but a later batch fails, it returns a PartialResultError
+// containing the successfully fetched emails along with the error.
+//
+// The onProgress callback (if non-nil) is called after each successfully fetched email.
+func (c *Client) GetEmailsBatched(ctx context.Context, ids []string, batchSize int, onProgress func()) ([]Email, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	if batchSize <= 0 {
+		batchSize = DefaultBatchSize
+	}
+
+	var allEmails []Email
+
+	for i := 0; i < len(ids); i += batchSize {
+		end := i + batchSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		batch := ids[i:end]
+
+		emails, err := c.GetEmails(ctx, batch)
+		if err != nil {
+			// If we already have some results, return them as a partial result.
+			if len(allEmails) > 0 {
+				return nil, &PartialResultError{
+					Emails:  allEmails,
+					Fetched: len(allEmails),
+					Total:   len(ids),
+					Err:     err,
+				}
+			}
+			return nil, err
+		}
+
+		allEmails = append(allEmails, emails...)
+
+		// Report progress for each email in this batch.
+		if onProgress != nil {
+			for range len(emails) {
+				onProgress()
+			}
+		}
+	}
+
+	return allEmails, nil
+}
+
 // SearchEmails chains Email/query and Email/get in a single JMAP request
 // using result references, so that Email/get fetches the IDs returned by
 // Email/query without a second round trip.

@@ -246,8 +246,8 @@ func (t *retryTransport) backoffDelay(attempt int, resp *http.Response) time.Dur
 		backoff = float64(t.client.maxDelay)
 	}
 
-	// Add jitter: random value between 0.5x and 1.5x the backoff.
-	jitter := backoff * (0.5 + rand.Float64())
+	// Add jitter: ±25% of the backoff (random value between 0.75x and 1.25x).
+	jitter := backoff * (0.75 + 0.5*rand.Float64())
 	return time.Duration(jitter)
 }
 
