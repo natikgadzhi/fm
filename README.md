@@ -10,6 +10,18 @@ A read-only CLI tool for searching and fetching email from Fastmail via the JMAP
 
 ## Installation
 
+### Homebrew
+
+```sh
+brew install natikgadzhi/taps/fm
+```
+
+### `go install`
+
+```sh
+go install github.com/natikgadzhi/fm@latest
+```
+
 ### From source
 
 ```sh
@@ -17,12 +29,6 @@ git clone https://github.com/natikgadzhi/fm
 cd fm
 make build
 # The binary is at ./fm — move it to somewhere in your $PATH.
-```
-
-### `go install`
-
-```sh
-go install github.com/natikgadzhi/fm@latest
 ```
 
 ## Quick start
