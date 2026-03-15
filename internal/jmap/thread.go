@@ -85,13 +85,8 @@ func (c *Client) GetThreadEmails(ctx context.Context, threadId string) ([]Email,
 			Name:     "Thread/get",
 			Path:     "/list/*/emailIds",
 		},
-		Properties: []string{
-			"id", "threadId", "messageId", "from", "to", "cc",
-			"subject", "sentAt", "preview", "mailboxIds", "size",
-			"hasAttachment", "attachments",
-		},
-		FetchTextBodyValues: true,
-		FetchHTMLBodyValues: true,
+		Properties:         emailProperties,
+		FetchAllBodyValues: true,
 	})
 
 	resp, err := c.Do(req)

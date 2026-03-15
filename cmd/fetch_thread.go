@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var withAttachments bool
+var threadWithAttachments bool
 
 var fetchThreadCmd = &cobra.Command{
 	Use:   "fetch-thread <thread-id>",
@@ -32,7 +32,7 @@ Use --with-attachments to download all attachments for every email in the thread
 
 func init() {
 	rootCmd.AddCommand(fetchThreadCmd)
-	fetchThreadCmd.Flags().BoolVar(&withAttachments, "with-attachments", false,
+	fetchThreadCmd.Flags().BoolVar(&threadWithAttachments, "with-attachments", false,
 		"Download attachments for all emails in the thread")
 }
 
@@ -76,7 +76,7 @@ func runFetchThread(cmd *cobra.Command, args []string) error {
 	}
 
 	// Download attachments if requested.
-	if withAttachments {
+	if threadWithAttachments {
 		accountID, err := client.PrimaryAccountID()
 		if err != nil {
 			return fmt.Errorf("getting account ID for attachment download: %w", err)
@@ -94,6 +94,8 @@ func runFetchThread(cmd *cobra.Command, args []string) error {
 				if name == "" {
 					name = att.BlobId
 				}
+				// Sanitize the filename to prevent path traversal attacks.
+				name = filepath.Base(name)
 
 				data, err := client.DownloadAttachment(ctx, string(accountID), att.BlobId, name)
 				if err != nil {
