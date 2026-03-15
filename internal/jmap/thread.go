@@ -116,10 +116,7 @@ func (c *Client) GetThreadEmails(ctx context.Context, threadId string) ([]Email,
 		return nil, fmt.Errorf("Email/get: unexpected response type %T", resp.Responses[1].Args)
 	}
 
-	emails := make([]Email, 0, len(emailResp.List))
-	for _, e := range emailResp.List {
-		emails = append(emails, emailFromJMAP(e))
-	}
+	emails := mapEmails(emailResp.List)
 
 	// Sort by date ascending.
 	sort.Slice(emails, func(i, j int) bool {
@@ -141,85 +138,3 @@ func threadFromJMAP(t *thread.Thread) *Thread {
 	}
 }
 
-// emailFromJMAP converts a go-jmap Email to our domain Email type.
-func emailFromJMAP(e *email.Email) Email {
-	from := make([]Address, 0, len(e.From))
-	for _, a := range e.From {
-		from = append(from, Address{Name: a.Name, Email: a.Email})
-	}
-
-	to := make([]Address, 0, len(e.To))
-	for _, a := range e.To {
-		to = append(to, Address{Name: a.Name, Email: a.Email})
-	}
-
-	cc := make([]Address, 0, len(e.CC))
-	for _, a := range e.CC {
-		cc = append(cc, Address{Name: a.Name, Email: a.Email})
-	}
-
-	mailboxIds := make(map[string]bool, len(e.MailboxIDs))
-	for id, v := range e.MailboxIDs {
-		mailboxIds[string(id)] = v
-	}
-
-	// Extract text body from body values if available.
-	var textBody string
-	if len(e.TextBody) > 0 && e.BodyValues != nil {
-		if bv, ok := e.BodyValues[e.TextBody[0].PartID]; ok {
-			textBody = bv.Value
-		}
-	}
-
-	// Extract HTML body from body values if available.
-	var htmlBody string
-	if len(e.HTMLBody) > 0 && e.BodyValues != nil {
-		if bv, ok := e.BodyValues[e.HTMLBody[0].PartID]; ok {
-			htmlBody = bv.Value
-		}
-	}
-
-	var messageId string
-	if len(e.MessageID) > 0 {
-		messageId = e.MessageID[0]
-	}
-
-	attachments := make([]Attachment, 0, len(e.Attachments))
-	for _, att := range e.Attachments {
-		attachments = append(attachments, Attachment{
-			BlobId:  string(att.BlobID),
-			Name:    att.Name,
-			Type:    att.Type,
-			Size:    int64(att.Size),
-			Charset: att.Charset,
-		})
-	}
-
-	var date = e.SentAt
-	if date == nil {
-		date = e.ReceivedAt
-	}
-
-	result := Email{
-		Id:            string(e.ID),
-		ThreadId:      string(e.ThreadID),
-		MessageId:     messageId,
-		From:          from,
-		To:            to,
-		Cc:            cc,
-		Subject:       e.Subject,
-		TextBody:      textBody,
-		HtmlBody:      htmlBody,
-		Preview:       e.Preview,
-		MailboxIds:    mailboxIds,
-		Size:          int64(e.Size),
-		HasAttachment: e.HasAttachment,
-		Attachments:   attachments,
-	}
-
-	if date != nil {
-		result.Date = *date
-	}
-
-	return result
-}

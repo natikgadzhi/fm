@@ -108,7 +108,7 @@ func runFetch(cmd *cobra.Command, args []string) error {
 
 	// Download attachments if requested.
 	if fetchWithAttachments && len(email.Attachments) > 0 {
-		if dlErr := downloadAttachments(cmd, cfg, email); dlErr != nil {
+		if dlErr := downloadAttachments(cmd, client, cfg.CacheDir, email); dlErr != nil {
 			return dlErr
 		}
 	}
@@ -123,21 +123,15 @@ func runFetch(cmd *cobra.Command, args []string) error {
 
 // downloadAttachments downloads each attachment for the given email
 // and saves them to {cache-dir}/attachments/{email-id}/{filename}.
-func downloadAttachments(cmd *cobra.Command, cfg *config.Config, email jmap.Email) error {
-	tok, _, err := auth.ResolveToken(token)
-	if err != nil {
-		return err
-	}
-
-	client := jmap.NewClient(tok, clientOpts()...)
-
+// The client must have an active session (Discover already called).
+func downloadAttachments(cmd *cobra.Command, client *jmap.Client, cacheBaseDir string, email jmap.Email) error {
 	accountID, err := client.PrimaryAccountID()
 	if err != nil {
 		return fmt.Errorf("getting account ID for attachment download: %w", err)
 	}
 
 	ctx := cmd.Context()
-	attachDir := filepath.Join(cfg.CacheDir, "attachments", email.Id)
+	attachDir := filepath.Join(cacheBaseDir, "attachments", email.Id)
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		return fmt.Errorf("creating attachment directory: %w", err)
 	}
@@ -155,8 +149,6 @@ func downloadAttachments(cmd *cobra.Command, cfg *config.Config, email jmap.Emai
 		}
 
 		// Sanitize the filename to prevent path traversal attacks.
-		// A malicious name like "../../../etc/passwd" would otherwise
-		// write outside the intended cache directory.
 		safeName := filepath.Base(name)
 		path := filepath.Join(attachDir, safeName)
 		if err := os.WriteFile(path, data, 0o644); err != nil {
@@ -164,7 +156,7 @@ func downloadAttachments(cmd *cobra.Command, cfg *config.Config, email jmap.Emai
 			continue
 		}
 
-		fmt.Fprintf(cmd.OutOrStdout(), "Attachment saved: %s\n", path)
+		fmt.Fprintf(os.Stderr, "Saved attachment: %s\n", path)
 	}
 
 	return nil

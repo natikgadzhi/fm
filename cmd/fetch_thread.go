@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/natikgadzhi/fm/internal/auth"
@@ -42,17 +41,14 @@ func runFetchThread(cmd *cobra.Command, args []string) error {
 
 	tok, _, err := auth.ResolveToken(token)
 	if err != nil {
-		return fmt.Errorf("resolving token: %w", err)
+		return err
 	}
 
 	client := jmap.NewClient(tok, clientOpts()...)
 	ctx := cmd.Context()
 
-	if err := client.Discover(); err != nil {
-		return fmt.Errorf("session discovery: %w", err)
-	}
-
 	// Fetch all emails in the thread, sorted chronologically.
+	// GetThreadEmails calls Discover internally.
 	emails, err := client.GetThreadEmails(ctx, threadID)
 
 	// Check for partial results — display what we got with a warning.
@@ -85,39 +81,12 @@ func runFetchThread(cmd *cobra.Command, args []string) error {
 
 	// Download attachments if requested.
 	if threadWithAttachments {
-		accountID, err := client.PrimaryAccountID()
-		if err != nil {
-			return fmt.Errorf("getting account ID for attachment download: %w", err)
-		}
-
 		for _, email := range emails {
-			for _, att := range email.Attachments {
-				attDir := filepath.Join(cfg.CacheDir, "attachments", email.Id)
-				if err := os.MkdirAll(attDir, 0o755); err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: failed to create attachment dir: %v\n", err)
-					continue
-				}
-
-				name := att.Name
-				if name == "" {
-					name = att.BlobId
-				}
-				// Sanitize the filename to prevent path traversal attacks.
-				name = filepath.Base(name)
-
-				data, err := client.DownloadAttachment(ctx, string(accountID), att.BlobId, name)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: failed to download attachment %q: %v\n", name, err)
-					continue
-				}
-
-				attPath := filepath.Join(attDir, name)
-				if err := os.WriteFile(attPath, data, 0o644); err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: failed to save attachment %q: %v\n", attPath, err)
-					continue
-				}
-
-				fmt.Fprintf(os.Stderr, "Saved attachment: %s\n", attPath)
+			if len(email.Attachments) == 0 {
+				continue
+			}
+			if dlErr := downloadAttachments(cmd, client, cfg.CacheDir, email); dlErr != nil {
+				return dlErr
 			}
 		}
 	}
@@ -150,40 +119,24 @@ func collectParticipants(emails []jmap.Email) []string {
 	seen := make(map[string]bool)
 	var participants []string
 
+	addAddresses := func(addrs []jmap.Address) {
+		for _, addr := range addrs {
+			if seen[addr.Email] {
+				continue
+			}
+			seen[addr.Email] = true
+			if addr.Name != "" {
+				participants = append(participants, fmt.Sprintf("%s <%s>", addr.Name, addr.Email))
+			} else {
+				participants = append(participants, addr.Email)
+			}
+		}
+	}
+
 	for _, email := range emails {
-		for _, addr := range email.From {
-			key := addr.Email
-			if !seen[key] {
-				seen[key] = true
-				if addr.Name != "" {
-					participants = append(participants, fmt.Sprintf("%s <%s>", addr.Name, addr.Email))
-				} else {
-					participants = append(participants, addr.Email)
-				}
-			}
-		}
-		for _, addr := range email.To {
-			key := addr.Email
-			if !seen[key] {
-				seen[key] = true
-				if addr.Name != "" {
-					participants = append(participants, fmt.Sprintf("%s <%s>", addr.Name, addr.Email))
-				} else {
-					participants = append(participants, addr.Email)
-				}
-			}
-		}
-		for _, addr := range email.Cc {
-			key := addr.Email
-			if !seen[key] {
-				seen[key] = true
-				if addr.Name != "" {
-					participants = append(participants, fmt.Sprintf("%s <%s>", addr.Name, addr.Email))
-				} else {
-					participants = append(participants, addr.Email)
-				}
-			}
-		}
+		addAddresses(email.From)
+		addAddresses(email.To)
+		addAddresses(email.Cc)
 	}
 
 	return participants

@@ -25,16 +25,12 @@ func init() {
 func runMailboxes(cmd *cobra.Command, args []string) error {
 	tok, _, err := auth.ResolveToken(token)
 	if err != nil {
-		return fmt.Errorf("resolving token: %w", err)
+		return err
 	}
 
 	client := jmap.NewClient(tok, clientOpts()...)
 
 	ctx := cmd.Context()
-	if err := client.Discover(); err != nil {
-		return fmt.Errorf("connecting to Fastmail: %w", err)
-	}
-
 	mailboxes, err := client.GetMailboxes(ctx)
 	if err != nil {
 		return fmt.Errorf("fetching mailboxes: %w", err)

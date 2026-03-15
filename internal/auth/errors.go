@@ -1,10 +1,7 @@
 package auth
 
-// ExitCodeAuth is the exit code used for authentication errors.
-const ExitCodeAuth = 2
-
 // AuthError represents an authentication-related error that should cause
-// the process to exit with ExitCodeAuth (2).
+// the process to exit with a dedicated exit code (see cmd/root.go).
 type AuthError struct {
 	Message string
 	Err     error
