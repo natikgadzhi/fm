@@ -77,7 +77,7 @@ func runFetch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	client := jmap.NewClient(tok, jmap.WithTimeout(timeout))
+	client := jmap.NewClient(tok, clientOpts()...)
 
 	ctx := context.Background()
 	emails, err := client.GetEmails(ctx, []string{emailID})
@@ -120,7 +120,7 @@ func downloadAttachments(cmd *cobra.Command, cfg *config.Config, email jmap.Emai
 		return err
 	}
 
-	client := jmap.NewClient(tok, jmap.WithTimeout(timeout))
+	client := jmap.NewClient(tok, clientOpts()...)
 
 	accountID, err := client.PrimaryAccountID()
 	if err != nil {
