@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Build-time variables, set via ldflags.
+// Version, Commit, and Date are set at build time via ldflags.
 var (
 	Version = "dev"
 	Commit  = "dev"
