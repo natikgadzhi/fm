@@ -12,6 +12,8 @@ import (
 	"time"
 
 	gojmap "git.sr.ht/~rockorager/go-jmap"
+	"github.com/natikgadzhi/fm/internal/auth"
+	"github.com/natikgadzhi/fm/internal/verbose"
 )
 
 const (
@@ -135,7 +137,14 @@ func NewClient(token string, opts ...Option) *Client {
 // client's lifetime.
 func (c *Client) Discover() error {
 	c.sessionOnce.Do(func() {
+		verbose.Log("JMAP session discovery: %s", c.inner.SessionEndpoint)
 		c.sessionErr = c.inner.Authenticate()
+		if c.sessionErr != nil {
+			verbose.Log("session discovery failed: %v", c.sessionErr)
+			c.sessionErr = classifyError(c.sessionErr)
+		} else {
+			verbose.Log("session discovery succeeded")
+		}
 	})
 	return c.sessionErr
 }
@@ -146,7 +155,19 @@ func (c *Client) Do(req *gojmap.Request) (*gojmap.Response, error) {
 	if err := c.Discover(); err != nil {
 		return nil, fmt.Errorf("session discovery failed: %w", err)
 	}
-	return c.inner.Do(req)
+
+	// Log the JMAP method names being invoked.
+	if verbose.Enabled() {
+		for _, inv := range req.Calls {
+			verbose.Log("JMAP request: %s", inv.Name)
+		}
+	}
+
+	resp, err := c.inner.Do(req)
+	if err != nil {
+		return nil, classifyError(err)
+	}
+	return resp, nil
 }
 
 // Session returns the discovered JMAP session, or nil if Discover has not
@@ -198,6 +219,7 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		resp, err = t.base.RoundTrip(req)
 		if err != nil {
 			// Network-level errors are not retried (e.g., DNS failure, timeout).
+			verbose.Log("HTTP request error (attempt %d): %v", attempt+1, err)
 			return nil, err
 		}
 
@@ -207,11 +229,13 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 		// Don't retry on the last attempt.
 		if attempt == t.client.maxRetries {
+			verbose.Log("HTTP %d: max retries exhausted after %d attempts", resp.StatusCode, attempt+1)
 			return resp, nil
 		}
 
 		// Calculate backoff delay.
 		delay := t.backoffDelay(attempt, resp)
+		verbose.Log("HTTP %d: retrying in %v (attempt %d/%d)", resp.StatusCode, delay, attempt+1, t.client.maxRetries+1)
 
 		// Drain and close the body before retrying.
 		resp.Body.Close()
@@ -270,4 +294,54 @@ func parseRetryAfter(value string) time.Duration {
 	}
 
 	return 0
+}
+
+// classifyError examines an error and wraps it with an actionable message
+// when possible. It detects authentication failures (401), network errors,
+// and other common failure modes.
+func classifyError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	errStr := err.Error()
+
+	// Check for HTTP 401 Unauthorized — the go-jmap library surfaces this
+	// in the error string when session discovery fails.
+	if strings.Contains(errStr, "401") || strings.Contains(errStr, "Unauthorized") {
+		return &auth.AuthError{
+			Message: "Authentication failed. Your API token may be revoked or invalid. Run 'fm auth login' to set a new token",
+			Err:     err,
+		}
+	}
+
+	// Check for common network errors.
+	if isNetworkError(err) {
+		return fmt.Errorf("failed to connect to Fastmail API. Check your internet connection: %w", err)
+	}
+
+	return err
+}
+
+// isNetworkError checks if the error looks like a network connectivity issue.
+func isNetworkError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	patterns := []string{
+		"no such host",
+		"connection refused",
+		"connection reset",
+		"network is unreachable",
+		"i/o timeout",
+		"dial tcp",
+		"TLS handshake",
+	}
+	for _, p := range patterns {
+		if strings.Contains(errStr, p) {
+			return true
+		}
+	}
+	return false
 }

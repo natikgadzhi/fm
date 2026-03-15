@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 
+	"github.com/natikgadzhi/fm/internal/verbose"
 	"github.com/zalando/go-keyring"
 )
 
@@ -26,10 +27,10 @@ const (
 )
 
 // ErrNoToken is returned when no API token can be found from any source.
-var ErrNoToken = errors.New(
-	"No API token found. Run 'fm auth login' or set FM_API_TOKEN. " +
+var ErrNoToken = &AuthError{
+	Message: "No API token found. Run 'fm auth login' or set FM_API_TOKEN. " +
 		"Create a token at https://app.fastmail.com/settings/security/tokens/new",
-)
+}
 
 // ResolveToken finds the API token using a 3-source priority chain:
 //  1. flagValue (from --token flag) — highest priority
@@ -40,18 +41,31 @@ var ErrNoToken = errors.New(
 func ResolveToken(flagValue string) (token string, source string, err error) {
 	// 1. Flag value has highest priority.
 	if flagValue != "" {
+		verbose.Log("token source: --token flag (%s)", MaskToken(flagValue))
 		return flagValue, SourceFlag, nil
 	}
 
 	// 2. Environment variable.
 	if v := os.Getenv("FM_API_TOKEN"); v != "" {
+		verbose.Log("token source: FM_API_TOKEN env var (%s)", MaskToken(v))
 		return v, SourceEnvironment, nil
 	}
 
 	// 3. OS keychain.
 	t, err := keyring.Get(keychainService, keychainKey)
 	if err == nil && t != "" {
+		verbose.Log("token source: OS keychain (%s)", MaskToken(t))
 		return t, SourceKeychain, nil
+	}
+
+	// If the keychain returned an error other than "not found", it may be
+	// inaccessible (e.g. locked, unavailable in CI). Report that specifically.
+	if err != nil && !errors.Is(err, keyring.ErrNotFound) {
+		verbose.Log("keychain error: %v", err)
+		return "", "", &AuthError{
+			Message: "Could not access system keychain. Set FM_API_TOKEN environment variable instead",
+			Err:     err,
+		}
 	}
 
 	return "", "", ErrNoToken

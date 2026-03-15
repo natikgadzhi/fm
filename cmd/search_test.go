@@ -108,7 +108,10 @@ func TestMergeFilterFlagsDoesNotOverrideWithEmpty(t *testing.T) {
 
 func TestMergeFilterFlagsCombined(t *testing.T) {
 	// Simulate: fm search --from alice@example.com "subject:report to:bob@example.com"
-	filter := jmap.ParseFilterQuery("subject:report to:bob@example.com")
+	filter, err := jmap.ParseFilterQuery("subject:report to:bob@example.com")
+	if err != nil {
+		t.Fatalf("ParseFilterQuery returned unexpected error: %v", err)
+	}
 
 	merged := MergeFilterFlags(filter, "alice@example.com", "", false)
 
@@ -125,7 +128,10 @@ func TestMergeFilterFlagsCombined(t *testing.T) {
 
 func TestMergeFilterFlagsBothFlagsAndQueryFrom(t *testing.T) {
 	// CLI flag should override query string from:
-	filter := jmap.ParseFilterQuery("from:query@example.com important stuff")
+	filter, err := jmap.ParseFilterQuery("from:query@example.com important stuff")
+	if err != nil {
+		t.Fatalf("ParseFilterQuery returned unexpected error: %v", err)
+	}
 
 	merged := MergeFilterFlags(filter, "flag@example.com", "", false)
 
