@@ -49,14 +49,16 @@ go install github.com/natikgadzhi/fm@latest
 
 Prompts for a Fastmail API token and stores it securely in the OS keychain (macOS Keychain, Linux Secret Service, Windows Credential Manager).
 
-### `fm auth status`
+### `fm auth check`
 
-Shows the current authentication state: where the token was resolved from and a masked token value.
+Verifies that your API token is valid by making a JMAP session request. On success, displays the token source, masked token, account ID, and username.
 
 ```sh
-$ fm auth status
+$ fm auth check
 Token source: keychain
 Token:        fmu1-****7890
+Account ID:   u12345
+Username:     user@fastmail.com
 ```
 
 ### `fm auth logout`

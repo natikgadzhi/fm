@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/natikgadzhi/fm/internal/auth"
+	"github.com/natikgadzhi/fm/internal/jmap"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -14,7 +15,7 @@ import (
 var authCmd = &cobra.Command{
 	Use:   "auth",
 	Short: "Manage API token authentication",
-	Long:  "Commands for logging in, checking status, and logging out of Fastmail.",
+	Long:  "Commands for logging in, checking authentication, and logging out of Fastmail.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return cmd.Help()
 	},
@@ -30,11 +31,13 @@ The token should start with "fmu1-".`,
 	RunE: runAuthLogin,
 }
 
-var authStatusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Show the current authentication status",
-	Long:  "Resolves the API token and shows its source and a masked value.",
-	RunE:  runAuthStatus,
+var authCheckCmd = &cobra.Command{
+	Use:   "check",
+	Short: "Verify that your API token is valid",
+	Long: `Resolves the API token and verifies it by making a JMAP session request.
+On success, displays token source, masked token, account ID, and username.
+On failure, displays a clear error message.`,
+	RunE: runAuthCheck,
 }
 
 var authLogoutCmd = &cobra.Command{
@@ -47,7 +50,7 @@ var authLogoutCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(authCmd)
 	authCmd.AddCommand(authLoginCmd)
-	authCmd.AddCommand(authStatusCmd)
+	authCmd.AddCommand(authCheckCmd)
 	authCmd.AddCommand(authLogoutCmd)
 }
 
@@ -92,14 +95,30 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runAuthStatus(cmd *cobra.Command, args []string) error {
+func runAuthCheck(cmd *cobra.Command, args []string) error {
 	tok, source, err := auth.ResolveToken(token)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Token source: %s\n", source)
-	fmt.Fprintf(cmd.OutOrStdout(), "Token:        %s\n", auth.MaskToken(tok))
+	client := jmap.NewClient(tok, clientOpts()...)
+	if err := client.Discover(); err != nil {
+		return fmt.Errorf("authentication failed: %w", err)
+	}
+
+	w := cmd.OutOrStdout()
+	fmt.Fprintf(w, "Token source: %s\n", source)
+	fmt.Fprintf(w, "Token:        %s\n", auth.MaskToken(tok))
+
+	accountID, err := client.PrimaryAccountID()
+	if err == nil {
+		fmt.Fprintf(w, "Account ID:   %s\n", accountID)
+	}
+
+	if session := client.Session(); session != nil && session.Username != "" {
+		fmt.Fprintf(w, "Username:     %s\n", session.Username)
+	}
+
 	return nil
 }
 
