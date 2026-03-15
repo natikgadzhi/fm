@@ -18,16 +18,15 @@ func (f *MarkdownFormatter) FormatEmailList(emails []jmap.Email) (string, error)
 
 	var b strings.Builder
 
-	b.WriteString("| Date | From | Subject | Preview |\n")
-	b.WriteString("| --- | --- | --- | --- |\n")
+	b.WriteString("| ID | Thread ID | Date | From | Subject |\n")
+	b.WriteString("| --- | --- | --- | --- | --- |\n")
 
 	for _, email := range emails {
 		date := email.Date.Format(dateFormat)
 		from := escapeMarkdown(formatAddress(email.From))
 		subject := escapeMarkdown(truncate(email.Subject, 60))
-		preview := escapeMarkdown(truncate(email.Preview, 80))
 
-		fmt.Fprintf(&b, "| %s | %s | %s | %s |\n", date, from, subject, preview)
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n", email.Id, email.ThreadId, date, from, subject)
 	}
 
 	return b.String(), nil

@@ -146,6 +146,12 @@ func TestTextFormatEmailList(t *testing.T) {
 	}
 
 	// Check header row
+	if !strings.Contains(result, "ID") {
+		t.Error("expected ID header")
+	}
+	if !strings.Contains(result, "THREAD ID") {
+		t.Error("expected THREAD ID header")
+	}
 	if !strings.Contains(result, "DATE") {
 		t.Error("expected DATE header")
 	}
@@ -155,8 +161,19 @@ func TestTextFormatEmailList(t *testing.T) {
 	if !strings.Contains(result, "SUBJECT") {
 		t.Error("expected SUBJECT header")
 	}
-	if !strings.Contains(result, "PREVIEW") {
-		t.Error("expected PREVIEW header")
+
+	// Check IDs are present (not truncated)
+	if !strings.Contains(result, "email-1") {
+		t.Error("expected email ID 'email-1' in output")
+	}
+	if !strings.Contains(result, "thread-1") {
+		t.Error("expected thread ID 'thread-1' in output")
+	}
+	if !strings.Contains(result, "email-2") {
+		t.Error("expected email ID 'email-2' in output")
+	}
+	if !strings.Contains(result, "thread-2") {
+		t.Error("expected thread ID 'thread-2' in output")
 	}
 
 	// Check data
@@ -284,12 +301,26 @@ func TestJSONFormatEmailList(t *testing.T) {
 	}
 
 	// Verify it's valid JSON
-	var parsed []json.RawMessage
+	var parsed []map[string]any
 	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
 		t.Fatalf("output is not valid JSON: %v\noutput: %s", err, result)
 	}
 	if len(parsed) != 2 {
 		t.Errorf("expected 2 emails in JSON output, got %d", len(parsed))
+	}
+
+	// Verify IDs are present in JSON output
+	if parsed[0]["id"] != "email-1" {
+		t.Errorf("expected id 'email-1', got %v", parsed[0]["id"])
+	}
+	if parsed[0]["threadId"] != "thread-1" {
+		t.Errorf("expected threadId 'thread-1', got %v", parsed[0]["threadId"])
+	}
+	if parsed[1]["id"] != "email-2" {
+		t.Errorf("expected id 'email-2', got %v", parsed[1]["id"])
+	}
+	if parsed[1]["threadId"] != "thread-2" {
+		t.Errorf("expected threadId 'thread-2', got %v", parsed[1]["threadId"])
 	}
 }
 
@@ -352,7 +383,13 @@ func TestMarkdownFormatEmailList(t *testing.T) {
 		t.Fatalf("FormatEmailList returned error: %v", err)
 	}
 
-	// Check table structure
+	// Check table structure includes ID and Thread ID columns
+	if !strings.Contains(result, "| ID |") {
+		t.Error("expected Markdown table header with ID")
+	}
+	if !strings.Contains(result, "| Thread ID |") {
+		t.Error("expected Markdown table header with Thread ID")
+	}
 	if !strings.Contains(result, "| Date |") {
 		t.Error("expected Markdown table header with Date")
 	}
@@ -361,6 +398,14 @@ func TestMarkdownFormatEmailList(t *testing.T) {
 	}
 	if !strings.Contains(result, "Alice Smith") {
 		t.Error("expected 'Alice Smith' in output")
+	}
+
+	// Check IDs are present in rows
+	if !strings.Contains(result, "email-1") {
+		t.Error("expected email ID 'email-1' in output")
+	}
+	if !strings.Contains(result, "thread-1") {
+		t.Error("expected thread ID 'thread-1' in output")
 	}
 
 	// Count rows (header + separator + 2 data rows)

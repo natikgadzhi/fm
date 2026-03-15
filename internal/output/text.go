@@ -12,6 +12,8 @@ const (
 	dateFormat = "Jan 02, 2006 3:04 PM"
 
 	// Column widths for tabular output.
+	idWidth      = 15
+	threadWidth  = 15
 	dateWidth    = 20
 	fromWidth    = 25
 	subjectWidth = 40
@@ -24,7 +26,7 @@ const (
 type TextFormatter struct{}
 
 // FormatEmailList formats a list of emails as a text table with
-// Date, From, Subject, and Preview columns.
+// ID, ThreadId, Date, From, and Subject columns.
 func (f *TextFormatter) FormatEmailList(emails []jmap.Email) (string, error) {
 	if len(emails) == 0 {
 		return "No emails found.\n", nil
@@ -33,25 +35,26 @@ func (f *TextFormatter) FormatEmailList(emails []jmap.Email) (string, error) {
 	var b strings.Builder
 
 	// Header
-	fmt.Fprintf(&b, "%-*s  %-*s  %-*s  %-*s\n",
+	fmt.Fprintf(&b, "%-*s  %-*s  %-*s  %-*s  %-*s\n",
+		idWidth, "ID",
+		threadWidth, "THREAD ID",
 		dateWidth, "DATE",
 		fromWidth, "FROM",
 		subjectWidth, "SUBJECT",
-		previewWidth, "PREVIEW",
 	)
-	b.WriteString(strings.Repeat("-", dateWidth+fromWidth+subjectWidth+previewWidth+6) + "\n")
+	b.WriteString(strings.Repeat("-", idWidth+threadWidth+dateWidth+fromWidth+subjectWidth+8) + "\n")
 
 	for _, email := range emails {
 		date := email.Date.Format(dateFormat)
 		from := formatAddress(email.From)
 		subject := truncate(email.Subject, subjectWidth)
-		preview := truncate(email.Preview, previewWidth)
 
-		fmt.Fprintf(&b, "%-*s  %-*s  %-*s  %-*s\n",
+		fmt.Fprintf(&b, "%-*s  %-*s  %-*s  %-*s  %-*s\n",
+			idWidth, email.Id,
+			threadWidth, email.ThreadId,
 			dateWidth, truncate(date, dateWidth),
 			fromWidth, truncate(from, fromWidth),
 			subjectWidth, subject,
-			previewWidth, preview,
 		)
 	}
 
