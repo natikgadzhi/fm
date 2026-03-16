@@ -1,6 +1,6 @@
 module github.com/natikgadzhi/fm
 
-go 1.26.1
+go 1.25.1
 
 require (
 	git.sr.ht/~rockorager/go-jmap v0.5.3
