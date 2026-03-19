@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
@@ -35,8 +36,9 @@ func init() {
 }
 
 // resolveMailboxArg resolves the mailbox argument to a JMAP mailbox ID.
-// It first tries to resolve it as a name/role, and if that fails, returns
-// the argument as-is (assuming it's a raw JMAP ID).
+// It first tries to resolve it as a name/role. If the mailbox is not found
+// by name, it returns the argument as-is (assuming it's a raw JMAP ID).
+// Network, auth, and other errors are propagated to the caller.
 func resolveMailboxArg(client *jmap.Client, cmd *cobra.Command, arg string) (string, error) {
 	ctx := cmd.Context()
 
@@ -46,9 +48,14 @@ func resolveMailboxArg(client *jmap.Client, cmd *cobra.Command, arg string) (str
 		return id, nil
 	}
 
-	// If resolution failed, assume it's a raw JMAP ID.
-	verbose.Log("Mailbox %q not found by name/role, using as raw ID", arg)
-	return arg, nil
+	// Only fall back to raw ID if the mailbox wasn't found by name.
+	// Propagate network, auth, and other errors so the user sees the real issue.
+	if strings.Contains(err.Error(), "not found") {
+		verbose.Log("Mailbox %q not found by name/role, using as raw ID", arg)
+		return arg, nil
+	}
+
+	return "", err
 }
 
 func runList(cmd *cobra.Command, args []string) error {
