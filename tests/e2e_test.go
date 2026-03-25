@@ -494,14 +494,14 @@ func runFM(t *testing.T, mock *mockJMAP, args ...string) (stdout, stderr string,
 	return outBuf.String(), errBuf.String(), runErr
 }
 
-// runFMWithCacheDir is like runFM but also sets --cache-dir.
-func runFMWithCacheDir(t *testing.T, mock *mockJMAP, cacheDir string, args ...string) (stdout, stderr string, err error) {
+// runFMWithDerivedDir is like runFM but also sets --derived.
+func runFMWithDerivedDir(t *testing.T, mock *mockJMAP, derivedDir string, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
 
 	fullArgs := append([]string{
 		"--endpoint", mock.SessionURL(),
 		"--token", "fmu1-test-token",
-		"--cache-dir", cacheDir,
+		"--derived", derivedDir,
 	}, args...)
 
 	cmd := exec.Command(fmBinary, fullArgs...)
@@ -645,23 +645,6 @@ func TestSearchJSONOutput(t *testing.T) {
 	}
 }
 
-func TestSearchMarkdownOutput(t *testing.T) {
-	mock := newMockJMAP()
-	defer mock.Close()
-
-	stdout, _, err := runFM(t, mock, "search", "-o", "markdown", "test")
-	if err != nil {
-		t.Fatalf("search command failed: %v", err)
-	}
-
-	// Markdown email list uses a table format with pipe delimiters.
-	if !strings.Contains(stdout, "| Date |") {
-		t.Error("markdown output should contain table header")
-	}
-	if !strings.Contains(stdout, "Test Email One") {
-		t.Error("markdown output should contain email subject")
-	}
-}
 
 // ---------------------------------------------------------------------------
 // Fetch command tests
@@ -706,19 +689,6 @@ func TestFetchJSONOutput(t *testing.T) {
 	}
 }
 
-func TestFetchMarkdownOutput(t *testing.T) {
-	mock := newMockJMAP()
-	defer mock.Close()
-
-	stdout, _, err := runFM(t, mock, "fetch", "-o", "markdown", "e001")
-	if err != nil {
-		t.Fatalf("fetch command failed: %v", err)
-	}
-
-	if !strings.Contains(stdout, "Test Email One") {
-		t.Error("markdown output should contain email subject")
-	}
-}
 
 func TestFetchCaching(t *testing.T) {
 	mock := newMockJMAP()
@@ -727,7 +697,7 @@ func TestFetchCaching(t *testing.T) {
 	cacheDir := t.TempDir()
 
 	// First fetch: should hit the API.
-	stdout1, _, err := runFMWithCacheDir(t, mock, cacheDir, "fetch", "e001")
+	stdout1, _, err := runFMWithDerivedDir(t, mock, cacheDir, "fetch", "e001")
 	if err != nil {
 		t.Fatalf("first fetch failed: %v", err)
 	}
@@ -747,7 +717,7 @@ func TestFetchCaching(t *testing.T) {
 	}
 
 	// Second fetch: should use cache (no additional API call).
-	stdout2, _, err := runFMWithCacheDir(t, mock, cacheDir, "fetch", "e001")
+	stdout2, _, err := runFMWithDerivedDir(t, mock, cacheDir, "fetch", "e001")
 	if err != nil {
 		t.Fatalf("second fetch failed: %v", err)
 	}
@@ -769,7 +739,7 @@ func TestFetchNoCacheFlag(t *testing.T) {
 	cacheDir := t.TempDir()
 
 	// First fetch to populate cache.
-	_, _, err := runFMWithCacheDir(t, mock, cacheDir, "fetch", "e001")
+	_, _, err := runFMWithDerivedDir(t, mock, cacheDir, "fetch", "e001")
 	if err != nil {
 		t.Fatalf("first fetch failed: %v", err)
 	}
@@ -777,7 +747,7 @@ func TestFetchNoCacheFlag(t *testing.T) {
 	apiCallsAfterFirst := mock.apiCalls.Load()
 
 	// Second fetch with --no-cache should hit API again.
-	_, _, err = runFMWithCacheDir(t, mock, cacheDir, "fetch", "--no-cache", "e001")
+	_, _, err = runFMWithDerivedDir(t, mock, cacheDir, "fetch", "--no-cache", "e001")
 	if err != nil {
 		t.Fatalf("second fetch with --no-cache failed: %v", err)
 	}
@@ -794,7 +764,7 @@ func TestFetchCacheFrontmatter(t *testing.T) {
 
 	cacheDir := t.TempDir()
 
-	_, _, err := runFMWithCacheDir(t, mock, cacheDir, "fetch", "e001")
+	_, _, err := runFMWithDerivedDir(t, mock, cacheDir, "fetch", "e001")
 	if err != nil {
 		t.Fatalf("fetch failed: %v", err)
 	}
@@ -875,19 +845,6 @@ func TestMailboxesJSONOutput(t *testing.T) {
 	}
 }
 
-func TestMailboxesMarkdownOutput(t *testing.T) {
-	mock := newMockJMAP()
-	defer mock.Close()
-
-	stdout, _, err := runFM(t, mock, "mailboxes", "-o", "markdown")
-	if err != nil {
-		t.Fatalf("mailboxes command failed: %v", err)
-	}
-
-	if !strings.Contains(stdout, "Inbox") {
-		t.Error("markdown output should contain mailbox names")
-	}
-}
 
 // ---------------------------------------------------------------------------
 // Fetch-thread command tests
@@ -941,7 +898,7 @@ func TestFetchThreadCachesEmails(t *testing.T) {
 
 	cacheDir := t.TempDir()
 
-	_, _, err := runFMWithCacheDir(t, mock, cacheDir, "fetch-thread", "t001")
+	_, _, err := runFMWithDerivedDir(t, mock, cacheDir, "fetch-thread", "t001")
 	if err != nil {
 		t.Fatalf("fetch-thread failed: %v", err)
 	}
@@ -1027,7 +984,7 @@ func TestAllCommandsJSONValid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stdout, stderr, err := runFMWithCacheDir(t, mock, cacheDir, tt.args...)
+			stdout, stderr, err := runFMWithDerivedDir(t, mock, cacheDir, tt.args...)
 			if err != nil {
 				t.Fatalf("command %v failed: %v\nstderr: %s", tt.args, err, stderr)
 			}
@@ -1043,7 +1000,7 @@ func TestAllOutputFormats(t *testing.T) {
 	mock := newMockJMAP()
 	defer mock.Close()
 
-	formats := []string{"text", "json", "markdown"}
+	formats := []string{"table", "json"}
 
 	for _, format := range formats {
 		t.Run("search-"+format, func(t *testing.T) {

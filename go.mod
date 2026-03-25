@@ -4,6 +4,7 @@ go 1.26.1
 
 require (
 	git.sr.ht/~rockorager/go-jmap v0.5.3
+	github.com/natikgadzhi/cli-kit v0.0.1
 	github.com/spf13/cobra v1.10.2
 	github.com/zalando/go-keyring v0.2.6
 	golang.org/x/term v0.41.0

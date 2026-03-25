@@ -5,28 +5,29 @@ import (
 	"errors"
 	"testing"
 
+	clierrors "github.com/natikgadzhi/cli-kit/errors"
 	"github.com/natikgadzhi/fm/internal/auth"
 )
 
 func TestExitCodeSuccess(t *testing.T) {
 	code := exitCode(nil)
-	if code != ExitSuccess {
-		t.Errorf("exitCode(nil): got %d, want %d", code, ExitSuccess)
+	if code != clierrors.ExitSuccess {
+		t.Errorf("exitCode(nil): got %d, want %d", code, clierrors.ExitSuccess)
 	}
 }
 
 func TestExitCodeGeneralError(t *testing.T) {
 	code := exitCode(errors.New("some error"))
-	if code != ExitError {
-		t.Errorf("exitCode(general error): got %d, want %d", code, ExitError)
+	if code != clierrors.ExitError {
+		t.Errorf("exitCode(general error): got %d, want %d", code, clierrors.ExitError)
 	}
 }
 
 func TestExitCodeAuthError(t *testing.T) {
 	err := &auth.AuthError{Message: "test auth error"}
 	code := exitCode(err)
-	if code != ExitAuthError {
-		t.Errorf("exitCode(auth error): got %d, want %d", code, ExitAuthError)
+	if code != clierrors.ExitAuthError {
+		t.Errorf("exitCode(auth error): got %d, want %d", code, clierrors.ExitAuthError)
 	}
 }
 
@@ -34,42 +35,46 @@ func TestExitCodeWrappedAuthError(t *testing.T) {
 	inner := &auth.AuthError{Message: "inner auth error"}
 	wrapped := errors.Join(errors.New("wrapper"), inner)
 	code := exitCode(wrapped)
-	if code != ExitAuthError {
-		t.Errorf("exitCode(wrapped auth error): got %d, want %d", code, ExitAuthError)
+	if code != clierrors.ExitAuthError {
+		t.Errorf("exitCode(wrapped auth error): got %d, want %d", code, clierrors.ExitAuthError)
 	}
 }
 
 func TestExitCodeContextCanceled(t *testing.T) {
 	code := exitCode(context.Canceled)
-	if code != ExitError {
-		t.Errorf("exitCode(context.Canceled): got %d, want %d", code, ExitError)
+	if code != clierrors.ExitError {
+		t.Errorf("exitCode(context.Canceled): got %d, want %d", code, clierrors.ExitError)
 	}
 }
 
-func TestValidOutputFormats(t *testing.T) {
-	valid := []string{"text", "json", "markdown"}
-	for _, f := range valid {
-		if !validOutputFormats[f] {
-			t.Errorf("format %q should be valid", f)
-		}
+func TestExitCodeCLIError(t *testing.T) {
+	err := clierrors.NewCLIError(clierrors.ExitAuthError, "access denied")
+	code := exitCode(err)
+	if code != clierrors.ExitAuthError {
+		t.Errorf("exitCode(CLIError): got %d, want %d", code, clierrors.ExitAuthError)
 	}
 }
 
-func TestInvalidOutputFormat(t *testing.T) {
-	invalid := []string{"xml", "csv", "yaml", ""}
-	for _, f := range invalid {
-		if validOutputFormats[f] {
-			t.Errorf("format %q should be invalid", f)
-		}
-	}
-}
-
-func TestVerboseFlagRegistered(t *testing.T) {
-	flag := rootCmd.PersistentFlags().Lookup("verbose")
+func TestDebugFlagRegistered(t *testing.T) {
+	flag := rootCmd.PersistentFlags().Lookup("debug")
 	if flag == nil {
-		t.Error("--verbose flag should be registered on root command")
+		t.Error("--debug flag should be registered on root command")
 	}
 	if flag.DefValue != "false" {
-		t.Errorf("--verbose default: got %q, want %q", flag.DefValue, "false")
+		t.Errorf("--debug default: got %q, want %q", flag.DefValue, "false")
+	}
+}
+
+func TestOutputFlagRegistered(t *testing.T) {
+	flag := rootCmd.PersistentFlags().Lookup("output")
+	if flag == nil {
+		t.Error("-o/--output flag should be registered on root command")
+	}
+}
+
+func TestDerivedFlagRegistered(t *testing.T) {
+	flag := rootCmd.PersistentFlags().Lookup("derived")
+	if flag == nil {
+		t.Error("-d/--derived flag should be registered on root command")
 	}
 }

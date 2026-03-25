@@ -6,11 +6,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/natikgadzhi/cli-kit/derived"
+	"github.com/natikgadzhi/cli-kit/output"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/cache"
-	"github.com/natikgadzhi/fm/internal/config"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -65,14 +65,11 @@ func runFetchThread(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("thread %q contains no emails", threadID)
 	}
 
-	// Load config for cache directory and output format.
-	cfg, err := config.Load(cacheDir, outputFormat)
-	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
-	}
+	// Resolve derived directory for caching.
+	derivedDir := derived.Resolve(cmd, "fm")
 
 	// Cache each email individually.
-	c := cache.NewCache(cfg.CacheDir)
+	c := cache.NewCache(derivedDir)
 	for _, email := range emails {
 		if err := c.Put(email, "fm fetch-thread "+threadID); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to cache email %s: %v\n", email.Id, err)
@@ -85,7 +82,7 @@ func runFetchThread(cmd *cobra.Command, args []string) error {
 			if len(email.Attachments) == 0 {
 				continue
 			}
-			if dlErr := downloadAttachments(cmd, client, cfg.CacheDir, email); dlErr != nil {
+			if dlErr := downloadAttachments(cmd, client, derivedDir, email); dlErr != nil {
 				return dlErr
 			}
 		}
@@ -99,17 +96,12 @@ func runFetchThread(cmd *cobra.Command, args []string) error {
 	}
 
 	// Format and display all emails.
-	formatter, err := output.New(cfg.OutputFormat)
-	if err != nil {
-		return fmt.Errorf("creating formatter: %w", err)
-	}
-
-	result, err := formatter.FormatEmailList(emails)
-	if err != nil {
+	format := output.Resolve(cmd)
+	renderer := &jmap.EmailListRenderer{Emails: emails}
+	if err := output.Print(format, emails, renderer); err != nil {
 		return fmt.Errorf("formatting thread emails: %w", err)
 	}
 
-	fmt.Fprint(cmd.OutOrStdout(), result)
 	return nil
 }
 
