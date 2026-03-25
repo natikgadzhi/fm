@@ -7,6 +7,10 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/natikgadzhi/cli-kit/derived"
+	clierrors "github.com/natikgadzhi/cli-kit/errors"
+	"github.com/natikgadzhi/cli-kit/output"
+	"github.com/natikgadzhi/cli-kit/version"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
 	"github.com/natikgadzhi/fm/internal/verbose"
@@ -20,27 +24,11 @@ var (
 	Date    = "unknown"
 )
 
-// Exit codes.
-const (
-	ExitSuccess   = 0
-	ExitError     = 1
-	ExitAuthError = 2
-)
-
-// validOutputFormats lists the allowed values for --output.
-var validOutputFormats = map[string]bool{
-	"text":     true,
-	"json":     true,
-	"markdown": true,
-}
-
 var (
-	outputFormat string
-	cacheDir     string
-	timeout      time.Duration
-	token        string
-	endpoint     string
-	verboseFlag  bool
+	timeout     time.Duration
+	token       string
+	endpoint    string
+	verboseFlag bool
 )
 
 var rootCmd = &cobra.Command{
@@ -50,19 +38,13 @@ var rootCmd = &cobra.Command{
 to search, list, and fetch emails. It saves messages locally as Markdown files
 with YAML frontmatter for metadata. The tool is read-only -- it never modifies,
 sends, or deletes emails.`,
-	Version:       Version,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// Enable verbose logging if --verbose is set.
+		// Enable verbose logging if --debug is set.
 		if verboseFlag {
 			verbose.Enable()
 			verbose.Log("fm version %s", Version)
-		}
-
-		// Validate output format.
-		if !validOutputFormats[outputFormat] {
-			return fmt.Errorf("invalid output format %q: must be one of text, json, markdown", outputFormat)
 		}
 
 		// Set up graceful Ctrl+C handling with context cancellation.
@@ -85,10 +67,12 @@ sends, or deletes emails.`,
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "text",
-		"Output format: text, json, or markdown")
-	rootCmd.PersistentFlags().StringVar(&cacheDir, "cache-dir", "",
-		"Cache directory for fetched emails (default: ~/.local/share/fm/cache/)")
+	// Register cli-kit output flag (-o/--output).
+	output.RegisterFlag(rootCmd)
+
+	// Register cli-kit derived directory flag (-d/--derived).
+	derived.RegisterFlag(rootCmd, "fm")
+
 	rootCmd.PersistentFlags().DurationVar(&timeout, "timeout", 30*time.Second,
 		"HTTP request timeout")
 	rootCmd.PersistentFlags().StringVar(&token, "token", "",
@@ -96,8 +80,17 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&endpoint, "endpoint", "",
 		"Override JMAP session endpoint URL (for testing)")
 	rootCmd.PersistentFlags().MarkHidden("endpoint")
-	rootCmd.PersistentFlags().BoolVar(&verboseFlag, "verbose", false,
+	rootCmd.PersistentFlags().BoolVar(&verboseFlag, "debug", false,
 		"Enable debug logging to stderr")
+
+	// Register cli-kit version command and --version flag.
+	info := &version.Info{
+		Version: Version,
+		Commit:  Commit,
+		Date:    Date,
+	}
+	rootCmd.AddCommand(version.NewCommand(info))
+	version.SetupFlag(rootCmd, info)
 }
 
 // clientOpts returns the common JMAP client options derived from global flags.
@@ -112,15 +105,20 @@ func clientOpts() []jmap.Option {
 // exitCode determines the process exit code based on the error type.
 func exitCode(err error) int {
 	if err == nil {
-		return ExitSuccess
+		return clierrors.ExitSuccess
 	}
 
 	var authErr *auth.AuthError
 	if errors.As(err, &authErr) {
-		return ExitAuthError
+		return clierrors.ExitAuthError
 	}
 
-	return ExitError
+	var cliErr *clierrors.CLIError
+	if errors.As(err, &cliErr) {
+		return cliErr.ExitCode
+	}
+
+	return clierrors.ExitError
 }
 
 // Execute runs the root command.

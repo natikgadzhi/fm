@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/natikgadzhi/cli-kit/output"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -41,16 +41,11 @@ func runMailboxes(cmd *cobra.Command, args []string) error {
 		return mailboxes[i].Name < mailboxes[j].Name
 	})
 
-	formatter, err := output.New(outputFormat)
-	if err != nil {
-		return fmt.Errorf("creating formatter: %w", err)
-	}
-
-	result, err := formatter.FormatMailboxes(mailboxes)
-	if err != nil {
+	format := output.Resolve(cmd)
+	renderer := &jmap.MailboxListRenderer{Mailboxes: mailboxes}
+	if err := output.Print(format, mailboxes, renderer); err != nil {
 		return fmt.Errorf("formatting mailboxes: %w", err)
 	}
 
-	fmt.Fprint(cmd.OutOrStdout(), result)
 	return nil
 }

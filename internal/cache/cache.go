@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/natikgadzhi/cli-kit/derived"
 	"github.com/natikgadzhi/fm/internal/jmap"
 )
 
@@ -80,6 +81,15 @@ func (c *Cache) Put(email jmap.Email, command string) error {
 		return fmt.Errorf("creating cache directory: %w", err)
 	}
 
+	// Build the Markdown body.
+	body := renderBody(email)
+
+	// Create the derived frontmatter using cli-kit.
+	dfm := derived.NewFrontmatter("fm", "email", email.Id, "https://api.fastmail.com/jmap/api/", command)
+
+	// Also build our own extended frontmatter for the cache file.
+	// We use our custom Frontmatter that includes email-specific fields,
+	// and keep the created_at/updated_at from the derived frontmatter.
 	fm := Frontmatter{
 		Tool:      "fm",
 		Object:    "email",
@@ -91,7 +101,7 @@ func (c *Cache) Put(email jmap.Email, command string) error {
 		Subject:   email.Subject,
 		Date:      email.Date.UTC().Format(time.RFC3339),
 		Mailbox:   firstMailbox(email.MailboxIds),
-		CachedAt:  time.Now().UTC().Format(time.RFC3339),
+		CachedAt:  dfm.CreatedAt,
 		SourceURL: "https://api.fastmail.com/jmap/api/",
 		Command:   command,
 	}
@@ -100,8 +110,6 @@ func (c *Cache) Put(email jmap.Email, command string) error {
 	if err != nil {
 		return err
 	}
-
-	body := renderBody(email)
 
 	content := append(header, []byte(body)...)
 

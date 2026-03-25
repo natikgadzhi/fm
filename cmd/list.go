@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/natikgadzhi/cli-kit/output"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/output"
 	"github.com/natikgadzhi/fm/internal/verbose"
 	"github.com/spf13/cobra"
 )
@@ -23,16 +23,16 @@ var listCmd = &cobra.Command{
 Accepts mailbox names (case-insensitive) like "INBOX", "Sent", "Drafts",
 or raw JMAP mailbox IDs. Returns the most recent emails first.`,
 	Example: `  fm list INBOX
-  fm list INBOX --limit 10
+  fm list INBOX -n 10
   fm list Sent -o json
-  fm list Drafts -o markdown --limit 5`,
+  fm list Drafts -n 5`,
 	Args: cobra.ExactArgs(1),
 	RunE: runList,
 }
 
 func init() {
 	rootCmd.AddCommand(listCmd)
-	listCmd.Flags().IntVar(&listLimit, "limit", 20, "Maximum number of emails to return")
+	listCmd.Flags().IntVarP(&listLimit, "limit", "n", 20, "Maximum number of emails to return")
 }
 
 // resolveMailboxArg resolves the mailbox argument to a JMAP mailbox ID.
@@ -92,16 +92,11 @@ func runList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	formatter, err := output.New(outputFormat)
-	if err != nil {
-		return err
-	}
-
-	out, err := formatter.FormatEmailList(emails)
-	if err != nil {
+	format := output.Resolve(cmd)
+	renderer := &jmap.EmailListRenderer{Emails: emails}
+	if err := output.Print(format, emails, renderer); err != nil {
 		return fmt.Errorf("formatting results: %w", err)
 	}
-	fmt.Fprint(cmd.OutOrStdout(), out)
 
 	fmt.Fprintf(os.Stderr, "\nFound %d email(s).\n", len(emails))
 

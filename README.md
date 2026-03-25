@@ -89,7 +89,7 @@ fm search "from:boss@company.com subject:urgent after:2025-01-01"
 fm search --from boss@company.com --has-attachments
 
 # Limit results and output as JSON
-fm search "in:INBOX" --limit 10 -o json
+fm search "in:INBOX" -n 10 -o json
 ```
 
 **Supported query syntax:**
@@ -118,7 +118,7 @@ fm fetch Mabcdef1234567890
 # Bypass the cache and re-fetch from the server
 fm fetch --no-cache Mabcdef1234567890
 
-# Fetch with attachments saved to the cache directory
+# Fetch with attachments saved to the derived directory
 fm fetch --with-attachments Mabcdef1234567890
 
 # Output as JSON
@@ -136,8 +136,8 @@ fm fetch-thread Tabcdef1234567890
 # Fetch a thread and download all attachments
 fm fetch-thread --with-attachments Tabcdef1234567890
 
-# Output the thread as Markdown
-fm fetch-thread Tabcdef1234567890 -o markdown
+# Output the thread as JSON
+fm fetch-thread Tabcdef1234567890 -o json
 ```
 
 ### `fm mailboxes`
@@ -152,28 +152,42 @@ fm mailboxes
 fm mailboxes -o json
 ```
 
+### `fm list <mailbox>`
+
+List emails in a mailbox by name or JMAP ID, in reverse-chronological order.
+
+```sh
+# List emails in the inbox
+fm list INBOX
+
+# Limit results
+fm list INBOX -n 10
+
+# Output as JSON
+fm list Sent -o json
+```
+
 ## Output formats
 
 All commands support the `-o` flag for output format:
 
 | Format     | Flag           | Description                          |
 |------------|----------------|--------------------------------------|
-| Text       | `-o text`      | Human-readable table (default)       |
+| Table      | `-o table`     | Human-readable aligned columns       |
 | JSON       | `-o json`      | Structured JSON                      |
-| Markdown   | `-o markdown`  | Markdown formatted output            |
 
-You can set a default output format with the `FM_OUTPUT` environment variable.
+When no `-o` flag is provided, `fm` auto-detects: **table** when stdout is a TTY, **json** when piped or redirected.
 
 ## Configuration
 
 `fm` is configured through environment variables and CLI flags. Flags take precedence over environment variables, which take precedence over defaults.
 
-| Environment variable | CLI flag       | Default                       | Description                    |
-|----------------------|----------------|-------------------------------|--------------------------------|
-| `FM_API_TOKEN`       | `--token`      | OS keychain                   | Fastmail API token             |
-| `FM_CACHE_DIR`       | `--cache-dir`  | `~/.local/share/fm/cache/`    | Cache directory path           |
-| `FM_OUTPUT`          | `-o`           | `text`                        | Default output format          |
-| --                   | `--timeout`    | `30s`                         | HTTP request timeout           |
+| Environment variable  | CLI flag       | Default                                    | Description                    |
+|-----------------------|----------------|--------------------------------------------|--------------------------------|
+| `FM_API_TOKEN`        | `--token`      | OS keychain                                | Fastmail API token             |
+| `FM_DERIVED_DIR`      | `-d/--derived` | `~/.local/share/lambdal/derived/fm/`       | Derived data directory         |
+| --                    | `--timeout`    | `30s`                                      | HTTP request timeout           |
+| --                    | `--debug`      | `false`                                    | Enable debug logging to stderr |
 
 ### Token resolution order
 
@@ -183,12 +197,21 @@ The API token is resolved from these sources, in priority order:
 2. `FM_API_TOKEN` environment variable
 3. OS keychain (set via `fm auth login`)
 
-## Cache
+### Derived directory resolution order
 
-Fetched emails are cached locally as Markdown files with YAML frontmatter at `~/.local/share/fm/cache/` (configurable via `FM_CACHE_DIR` or `--cache-dir`).
+The derived data directory is resolved from these sources, in priority order:
+
+1. `-d/--derived` flag
+2. `FM_DERIVED_DIR` environment variable
+3. `LAMBDAL_DERIVED_DIR` environment variable (appends `/fm`)
+4. Default: `~/.local/share/lambdal/derived/fm/`
+
+## Derived data (cache)
+
+Fetched emails are cached locally as Markdown files with YAML frontmatter in the derived data directory (default: `~/.local/share/lambdal/derived/fm/`, configurable via `FM_DERIVED_DIR` or `-d/--derived`).
 
 ```
-~/.local/share/fm/cache/
+~/.local/share/lambdal/derived/fm/
     Mabcdef1234567890.md
     Mxyz9876543210.md
     attachments/

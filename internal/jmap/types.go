@@ -1,6 +1,12 @@
 package jmap
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/natikgadzhi/cli-kit/output"
+)
 
 // Email represents a JMAP Email object with the fields we care about.
 type Email struct {
@@ -63,4 +69,99 @@ type SearchFilter struct {
 	Before        *time.Time `json:"before,omitempty"`
 	After         *time.Time `json:"after,omitempty"`
 	HasAttachment bool       `json:"hasAttachment,omitempty"`
+}
+
+// dateFormat is the human-friendly date format used in table output.
+const dateFormat = "Jan 02, 2006 3:04 PM"
+
+// --- TableRenderer implementations for cli-kit/output ---
+
+// EmailListRenderer wraps a slice of emails for table rendering.
+type EmailListRenderer struct {
+	Emails []Email
+}
+
+// RenderTable renders a list of emails as a table with ID, ThreadID, Date, From, Subject columns.
+func (r *EmailListRenderer) RenderTable(t *output.Table) {
+	t.Header("ID", "Thread ID", "Date", "From", "Subject")
+	for _, email := range r.Emails {
+		date := email.Date.Format(dateFormat)
+		from := displayAddress(email.From)
+		t.Row(email.Id, email.ThreadId, date, from, email.Subject)
+	}
+}
+
+// EmailRenderer wraps a single email for table rendering.
+type EmailRenderer struct {
+	Email Email
+}
+
+// RenderTable renders a single email's full details as key-value rows.
+func (r *EmailRenderer) RenderTable(t *output.Table) {
+	e := r.Email
+	t.Header("Field", "Value")
+	t.Row("ID", e.Id)
+	t.Row("Thread ID", e.ThreadId)
+	t.Row("Date", e.Date.Format(dateFormat))
+	t.Row("From", displayAddressList(e.From))
+	t.Row("To", displayAddressList(e.To))
+	if len(e.Cc) > 0 {
+		t.Row("Cc", displayAddressList(e.Cc))
+	}
+	t.Row("Subject", e.Subject)
+	if e.HasAttachment && len(e.Attachments) > 0 {
+		t.Row("Attachments", fmt.Sprintf("%d", len(e.Attachments)))
+	}
+	// Add a blank row before body.
+	body := e.TextBody
+	if body == "" {
+		body = e.Preview
+	}
+	t.Row("", "")
+	t.Row("Body", body)
+}
+
+// MailboxListRenderer wraps a slice of mailboxes for table rendering.
+type MailboxListRenderer struct {
+	Mailboxes []Mailbox
+}
+
+// RenderTable renders mailboxes as a table with Name, Role, Unread, Total columns.
+func (r *MailboxListRenderer) RenderTable(t *output.Table) {
+	t.Header("Name", "Role", "Unread", "Total")
+	for _, mb := range r.Mailboxes {
+		role := mb.Role
+		if role == "" {
+			role = "-"
+		}
+		t.Row(mb.Name, role, fmt.Sprintf("%d", mb.UnreadEmails), fmt.Sprintf("%d", mb.TotalEmails))
+	}
+}
+
+// displayAddress returns a display string for the first address in the list.
+func displayAddress(addrs []Address) string {
+	if len(addrs) == 0 {
+		return ""
+	}
+	a := addrs[0]
+	if a.Name != "" {
+		return a.Name
+	}
+	return a.Email
+}
+
+// displayAddressList returns a comma-separated display string for all addresses.
+func displayAddressList(addrs []Address) string {
+	if len(addrs) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(addrs))
+	for _, a := range addrs {
+		if a.Name != "" {
+			parts = append(parts, fmt.Sprintf("%s <%s>", a.Name, a.Email))
+		} else {
+			parts = append(parts, a.Email)
+		}
+	}
+	return strings.Join(parts, ", ")
 }

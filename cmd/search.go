@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/natikgadzhi/cli-kit/output"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -45,7 +45,7 @@ CLI flags (--from, --to, --has-attachments) override inline query filters.`,
 func init() {
 	rootCmd.AddCommand(searchCmd)
 
-	searchCmd.Flags().IntVar(&searchLimit, "limit", 25, "Maximum number of results to return")
+	searchCmd.Flags().IntVarP(&searchLimit, "limit", "n", 25, "Maximum number of results to return")
 	searchCmd.Flags().StringVar(&searchFrom, "from", "", "Filter by sender email address")
 	searchCmd.Flags().StringVar(&searchTo, "to", "", "Filter by recipient email address")
 	searchCmd.Flags().BoolVar(&searchHasAttachment, "has-attachments", false, "Filter to only emails with attachments")
@@ -106,20 +106,14 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// 7. Create formatter from outputFormat global flag.
-	formatter, err := output.New(outputFormat)
-	if err != nil {
-		return err
-	}
-
-	// 8. Format and print results to stdout.
-	out, err := formatter.FormatEmailList(emails)
-	if err != nil {
+	// 7. Print results using cli-kit output.
+	format := output.Resolve(cmd)
+	renderer := &jmap.EmailListRenderer{Emails: emails}
+	if err := output.Print(format, emails, renderer); err != nil {
 		return fmt.Errorf("formatting results: %w", err)
 	}
-	fmt.Fprint(cmd.OutOrStdout(), out)
 
-	// 9. Print count to stderr.
+	// 8. Print count to stderr.
 	fmt.Fprintf(os.Stderr, "\nFound %d email(s).\n", len(emails))
 
 	return nil

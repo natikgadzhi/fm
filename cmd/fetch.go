@@ -6,11 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/natikgadzhi/cli-kit/derived"
+	"github.com/natikgadzhi/cli-kit/output"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/cache"
-	"github.com/natikgadzhi/fm/internal/config"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/output"
 	"github.com/natikgadzhi/fm/internal/verbose"
 	"github.com/spf13/cobra"
 )
@@ -29,7 +29,7 @@ By default, fetched emails are cached locally as Markdown files.
 Subsequent fetches of the same ID are served from the cache.
 
 Use --no-cache to bypass the cache and always fetch from the server.
-Use --with-attachments to download email attachments to the cache directory.`,
+Use --with-attachments to download email attachments to the derived directory.`,
 	Args: cobra.ExactArgs(1),
 	RunE: runFetch,
 }
@@ -39,23 +39,16 @@ func init() {
 	fetchCmd.Flags().BoolVar(&fetchNoCache, "no-cache", false,
 		"Bypass the cache and fetch directly from the server")
 	fetchCmd.Flags().BoolVar(&fetchWithAttachments, "with-attachments", false,
-		"Download email attachments to the cache directory")
+		"Download email attachments to the derived directory")
 }
 
 func runFetch(cmd *cobra.Command, args []string) error {
 	emailID := args[0]
 
-	cfg, err := config.Load(cacheDir, outputFormat)
-	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
-	}
+	derivedDir := derived.Resolve(cmd, "fm")
+	format := output.Resolve(cmd)
 
-	formatter, err := output.New(cfg.OutputFormat)
-	if err != nil {
-		return err
-	}
-
-	c := cache.NewCache(cfg.CacheDir)
+	c := cache.NewCache(derivedDir)
 
 	// Try the cache first (unless --no-cache).
 	// When --with-attachments is requested, skip the cache because cached
@@ -64,11 +57,10 @@ func runFetch(cmd *cobra.Command, args []string) error {
 	if !fetchNoCache && !fetchWithAttachments {
 		if cached, err := c.Get(emailID); err == nil && cached != nil {
 			verbose.Log("cache hit for email %s", emailID)
-			out, err := formatter.FormatEmail(*cached)
-			if err != nil {
+			renderer := &jmap.EmailRenderer{Email: *cached}
+			if err := output.Print(format, *cached, renderer); err != nil {
 				return fmt.Errorf("formatting email: %w", err)
 			}
-			fmt.Fprint(cmd.OutOrStdout(), out)
 			return nil
 		}
 		verbose.Log("cache miss for email %s", emailID)
@@ -108,30 +100,29 @@ func runFetch(cmd *cobra.Command, args []string) error {
 
 	// Download attachments if requested.
 	if fetchWithAttachments && len(email.Attachments) > 0 {
-		if dlErr := downloadAttachments(cmd, client, cfg.CacheDir, email); dlErr != nil {
+		if dlErr := downloadAttachments(cmd, client, derivedDir, email); dlErr != nil {
 			return dlErr
 		}
 	}
 
-	out, err := formatter.FormatEmail(email)
-	if err != nil {
+	renderer := &jmap.EmailRenderer{Email: email}
+	if err := output.Print(format, email, renderer); err != nil {
 		return fmt.Errorf("formatting email: %w", err)
 	}
-	fmt.Fprint(cmd.OutOrStdout(), out)
 	return nil
 }
 
 // downloadAttachments downloads each attachment for the given email
-// and saves them to {cache-dir}/attachments/{email-id}/{filename}.
+// and saves them to {derived-dir}/attachments/{email-id}/{filename}.
 // The client must have an active session (Discover already called).
-func downloadAttachments(cmd *cobra.Command, client *jmap.Client, cacheBaseDir string, email jmap.Email) error {
+func downloadAttachments(cmd *cobra.Command, client *jmap.Client, derivedBaseDir string, email jmap.Email) error {
 	accountID, err := client.PrimaryAccountID()
 	if err != nil {
 		return fmt.Errorf("getting account ID for attachment download: %w", err)
 	}
 
 	ctx := cmd.Context()
-	attachDir := filepath.Join(cacheBaseDir, "attachments", email.Id)
+	attachDir := filepath.Join(derivedBaseDir, "attachments", email.Id)
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		return fmt.Errorf("creating attachment directory: %w", err)
 	}
