@@ -42,11 +42,11 @@ make build
    ```
 3. Search your inbox:
    ```sh
-   fm search "from:boss@company.com subject:quarterly report"
+   fm email search "from:boss@company.com subject:quarterly report"
    ```
 4. Fetch a single email by its JMAP ID (shown in search results):
    ```sh
-   fm fetch Mabcdef1234567890
+   fm email fetch Mabcdef1234567890
    ```
 
 ## Commands
@@ -71,25 +71,25 @@ Username:     user@fastmail.com
 
 Removes the stored API token from the OS keychain.
 
-### `fm search <query>`
+### `fm email search <query>`
 
 Search emails using Fastmail's JMAP query interface. Returns a summary table with date, sender, subject, and snippet.
 
 ```sh
 # Free text search
-fm search meeting notes
+fm email search meeting notes
 
 # Filter by sender
-fm search "from:alice@example.com"
+fm email search "from:alice@example.com"
 
 # Combine filters
-fm search "from:boss@company.com subject:urgent after:2025-01-01"
+fm email search "from:boss@company.com subject:urgent after:2025-01-01"
 
 # Use CLI flags instead of (or in addition to) query syntax
-fm search --from boss@company.com --has-attachments
+fm email search --from boss@company.com --has-attachments
 
 # Limit results and output as JSON
-fm search "in:INBOX" -n 10 -o json
+fm email search "in:INBOX" -n 10 -o json
 ```
 
 **Supported query syntax:**
@@ -107,64 +107,64 @@ fm search "in:INBOX" -n 10 -o json
 
 **CLI flags** (`--from`, `--to`, `--has-attachments`) override inline query filters when both are provided.
 
-### `fm fetch <email-id>`
+### `fm email fetch <email-id>`
 
 Fetch a single email by its JMAP ID. The email is cached locally as a Markdown file and printed to stdout.
 
 ```sh
 # Fetch and display an email
-fm fetch Mabcdef1234567890
+fm email fetch Mabcdef1234567890
 
 # Bypass the cache and re-fetch from the server
-fm fetch --no-cache Mabcdef1234567890
+fm email fetch --no-cache Mabcdef1234567890
 
 # Fetch with attachments saved to the derived directory
-fm fetch --with-attachments Mabcdef1234567890
+fm email fetch --with-attachments Mabcdef1234567890
 
 # Output as JSON
-fm fetch Mabcdef1234567890 -o json
+fm email fetch Mabcdef1234567890 -o json
 ```
 
-### `fm fetch-thread <thread-id>`
+### `fm email fetch-thread <thread-id>`
 
 Fetch all emails in a thread, displayed in chronological order. Each email is cached individually.
 
 ```sh
 # Fetch an entire thread
-fm fetch-thread Tabcdef1234567890
+fm email fetch-thread Tabcdef1234567890
 
 # Fetch a thread and download all attachments
-fm fetch-thread --with-attachments Tabcdef1234567890
+fm email fetch-thread --with-attachments Tabcdef1234567890
 
 # Output the thread as JSON
-fm fetch-thread Tabcdef1234567890 -o json
+fm email fetch-thread Tabcdef1234567890 -o json
 ```
 
-### `fm mailboxes`
+### `fm email mailboxes`
 
 List all mailboxes (folders) in the account, sorted alphabetically.
 
 ```sh
 # List mailboxes as a table
-fm mailboxes
+fm email mailboxes
 
 # List mailboxes as JSON (useful for scripting)
-fm mailboxes -o json
+fm email mailboxes -o json
 ```
 
-### `fm list <mailbox>`
+### `fm email list <mailbox>`
 
 List emails in a mailbox by name or JMAP ID, in reverse-chronological order.
 
 ```sh
 # List emails in the inbox
-fm list INBOX
+fm email list INBOX
 
 # Limit results
-fm list INBOX -n 10
+fm email list INBOX -n 10
 
 # Output as JSON
-fm list Sent -o json
+fm email list Sent -o json
 ```
 
 ## Output formats
@@ -236,7 +236,7 @@ date: "2025-01-15T10:30:00Z"
 mailbox: "INBOX"
 cached_at: "2025-01-15T12:00:00Z"
 source_url: "https://api.fastmail.com/jmap/api/"
-command: "fm fetch Mabcdef1234567890"
+command: "fm email fetch Mabcdef1234567890"
 ---
 
 # Meeting tomorrow

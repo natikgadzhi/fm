@@ -35,15 +35,15 @@ Supported query syntax:
   <any text>                  Free text search
 
 CLI flags (--from, --to, --has-attachments) override inline query filters.`,
-	Example: `  fm search "from:boss@company.com subject:urgent after:2025-01-01"
-  fm search --from boss@company.com --has-attachments
-  fm search --from alice@example.com "subject:report"
-  fm search meeting notes`,
+	Example: `  fm email search "from:boss@company.com subject:urgent after:2025-01-01"
+  fm email search --from boss@company.com --has-attachments
+  fm email search --from alice@example.com "subject:report"
+  fm email search meeting notes`,
 	RunE: runSearch,
 }
 
 func init() {
-	rootCmd.AddCommand(searchCmd)
+	emailCmd.AddCommand(searchCmd)
 
 	searchCmd.Flags().IntVarP(&searchLimit, "limit", "n", 25, "Maximum number of results to return")
 	searchCmd.Flags().StringVar(&searchFrom, "from", "", "Filter by sender email address")

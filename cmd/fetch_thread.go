@@ -31,7 +31,7 @@ Use --with-attachments to download all attachments for every email in the thread
 }
 
 func init() {
-	rootCmd.AddCommand(fetchThreadCmd)
+	emailCmd.AddCommand(fetchThreadCmd)
 	fetchThreadCmd.Flags().BoolVar(&threadWithAttachments, "with-attachments", false,
 		"Download attachments for all emails in the thread")
 }
@@ -71,7 +71,7 @@ func runFetchThread(cmd *cobra.Command, args []string) error {
 	// Cache each email individually.
 	c := cache.NewCache(derivedDir)
 	for _, email := range emails {
-		if err := c.Put(email, "fm fetch-thread "+threadID); err != nil {
+		if err := c.Put(email, "fm email fetch-thread "+threadID); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to cache email %s: %v\n", email.Id, err)
 		}
 	}

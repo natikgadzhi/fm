@@ -5,16 +5,16 @@ import (
 )
 
 func TestMailboxesCommandRegistered(t *testing.T) {
-	// Verify the mailboxes command is registered on the root command.
+	// Verify the mailboxes command is registered on the email command.
 	found := false
-	for _, cmd := range rootCmd.Commands() {
+	for _, cmd := range emailCmd.Commands() {
 		if cmd.Name() == "mailboxes" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("expected 'mailboxes' subcommand to be registered on root command")
+		t.Error("expected 'mailboxes' subcommand to be registered on email command")
 	}
 }
 

@@ -7,16 +7,16 @@ import (
 )
 
 func TestSearchCommandRegistered(t *testing.T) {
-	// Verify the search command is registered as a subcommand of root.
+	// Verify the search command is registered as a subcommand of email.
 	found := false
-	for _, cmd := range rootCmd.Commands() {
+	for _, cmd := range emailCmd.Commands() {
 		if cmd.Name() == "search" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("search command should be registered on rootCmd")
+		t.Error("search command should be registered on emailCmd")
 	}
 }
 

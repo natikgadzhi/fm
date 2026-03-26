@@ -6,14 +6,14 @@ import (
 
 func TestListCommandRegistered(t *testing.T) {
 	found := false
-	for _, cmd := range rootCmd.Commands() {
+	for _, cmd := range emailCmd.Commands() {
 		if cmd.Name() == "list" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("list command should be registered on rootCmd")
+		t.Error("list command should be registered on emailCmd")
 	}
 }
 

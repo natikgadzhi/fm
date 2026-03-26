@@ -8,16 +8,16 @@ import (
 )
 
 func TestFetchThreadCommandRegistered(t *testing.T) {
-	// Verify that fetch-thread is registered as a subcommand of root.
+	// Verify that fetch-thread is registered as a subcommand of email.
 	found := false
-	for _, cmd := range rootCmd.Commands() {
+	for _, cmd := range emailCmd.Commands() {
 		if cmd.Name() == "fetch-thread" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("fetch-thread command is not registered on rootCmd")
+		t.Error("fetch-thread command is not registered on emailCmd")
 	}
 }
 
