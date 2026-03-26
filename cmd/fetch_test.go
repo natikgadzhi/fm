@@ -14,16 +14,16 @@ import (
 )
 
 func TestFetchCommandRegistered(t *testing.T) {
-	// Verify the fetch command is registered on the root command.
+	// Verify the fetch command is registered on the email command.
 	found := false
-	for _, cmd := range rootCmd.Commands() {
+	for _, cmd := range emailCmd.Commands() {
 		if cmd.Name() == "fetch" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatal("expected 'fetch' command to be registered on root")
+		t.Fatal("expected 'fetch' command to be registered on emailCmd")
 	}
 }
 
@@ -89,7 +89,7 @@ func TestFetchCacheHit(t *testing.T) {
 	// cli-kit output writes directly to os.Stdout, so we verify the
 	// command runs without error. The output correctness is verified
 	// by the cache and renderer tests.
-	rootCmd.SetArgs([]string{"fetch", "--derived", tmpDir, "--output", "table", "M12345"})
+	rootCmd.SetArgs([]string{"email", "fetch", "--derived", tmpDir, "--output", "table", "M12345"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -194,7 +194,7 @@ func TestFetchCacheHitJsonOutput(t *testing.T) {
 
 	// Note: JSON output goes to stdout directly via cli-kit, so we can't easily
 	// capture it via cobra's SetOut. We verify the command runs without error.
-	rootCmd.SetArgs([]string{"fetch", "--derived", tmpDir, "--output", "json", "Mjson1"})
+	rootCmd.SetArgs([]string{"email", "fetch", "--derived", tmpDir, "--output", "json", "Mjson1"})
 	err := rootCmd.Execute()
 	if err != nil {
 		t.Fatalf("fetch command returned error: %v", err)

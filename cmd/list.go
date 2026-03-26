@@ -22,16 +22,16 @@ var listCmd = &cobra.Command{
 
 Accepts mailbox names (case-insensitive) like "INBOX", "Sent", "Drafts",
 or raw JMAP mailbox IDs. Returns the most recent emails first.`,
-	Example: `  fm list INBOX
-  fm list INBOX -n 10
-  fm list Sent -o json
-  fm list Drafts -n 5`,
+	Example: `  fm email list INBOX
+  fm email list INBOX -n 10
+  fm email list Sent -o json
+  fm email list Drafts -n 5`,
 	Args: cobra.ExactArgs(1),
 	RunE: runList,
 }
 
 func init() {
-	rootCmd.AddCommand(listCmd)
+	emailCmd.AddCommand(listCmd)
 	listCmd.Flags().IntVarP(&listLimit, "limit", "n", 20, "Maximum number of emails to return")
 }
 

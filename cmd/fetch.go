@@ -35,7 +35,7 @@ Use --with-attachments to download email attachments to the derived directory.`,
 }
 
 func init() {
-	rootCmd.AddCommand(fetchCmd)
+	emailCmd.AddCommand(fetchCmd)
 	fetchCmd.Flags().BoolVar(&fetchNoCache, "no-cache", false,
 		"Bypass the cache and fetch directly from the server")
 	fetchCmd.Flags().BoolVar(&fetchWithAttachments, "with-attachments", false,
@@ -93,7 +93,7 @@ func runFetch(cmd *cobra.Command, args []string) error {
 	email := emails[0]
 
 	// Cache the email.
-	if putErr := c.Put(email, "fm fetch "+emailID); putErr != nil {
+	if putErr := c.Put(email, "fm email fetch "+emailID); putErr != nil {
 		// Log but don't fail — caching is best-effort.
 		fmt.Fprintf(os.Stderr, "Warning: failed to cache email: %v\n", putErr)
 	}

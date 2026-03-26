@@ -19,7 +19,7 @@ var mailboxesCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(mailboxesCmd)
+	emailCmd.AddCommand(mailboxesCmd)
 }
 
 func runMailboxes(cmd *cobra.Command, args []string) error {
