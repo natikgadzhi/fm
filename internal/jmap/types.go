@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/natikgadzhi/fm/internal/table"
+	"github.com/natikgadzhi/cli-kit/table"
 )
 
 // Email represents a JMAP Email object with the fields we care about.

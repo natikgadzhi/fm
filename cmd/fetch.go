@@ -8,10 +8,11 @@ import (
 
 	"github.com/natikgadzhi/cli-kit/derived"
 	"github.com/natikgadzhi/cli-kit/output"
+	"github.com/natikgadzhi/cli-kit/progress"
+	"github.com/natikgadzhi/cli-kit/table"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/cache"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/table"
 	"github.com/natikgadzhi/fm/internal/verbose"
 	"github.com/spf13/cobra"
 )
@@ -83,6 +84,9 @@ func runFetch(cmd *cobra.Command, args []string) error {
 
 	client := jmap.NewClient(tok, clientOpts()...)
 
+	spinner := progress.NewSpinner("Fetching email...", format)
+	spinner.Start()
+
 	ctx := cmd.Context()
 	emails, err := client.GetEmails(ctx, []string{emailID})
 
@@ -92,8 +96,11 @@ func runFetch(cmd *cobra.Command, args []string) error {
 		emails = partialErr.Emails
 		fmt.Fprintf(os.Stderr, "Warning: partial results — %v\n", partialErr.Err)
 	} else if err != nil {
+		spinner.Finish()
 		return fmt.Errorf("fetching email: %w", err)
 	}
+
+	spinner.Finish()
 
 	if len(emails) == 0 {
 		return fmt.Errorf("email %q not found. Verify the message ID is correct", emailID)

@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	"github.com/natikgadzhi/cli-kit/output"
+	"github.com/natikgadzhi/cli-kit/progress"
+	"github.com/natikgadzhi/cli-kit/table"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/table"
 	"github.com/spf13/cobra"
 )
 
@@ -87,6 +88,10 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	// 4. Merge CLI flags into filter (flags override query string).
 	filter = MergeFilterFlags(filter, searchFrom, searchTo, searchHasAttachment)
 
+	format := output.Resolve(cmd)
+	spinner := progress.NewSpinner("Searching emails...", format)
+	spinner.Start()
+
 	// 5. Call SearchEmails using the command context (supports Ctrl+C cancellation).
 	ctx := cmd.Context()
 	emails, err := client.SearchEmails(ctx, filter, searchLimit)
@@ -98,8 +103,11 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "Warning: partial results — fetched %d of %d emails: %v\n",
 			partialErr.Fetched, partialErr.Total, partialErr.Err)
 	} else if err != nil {
+		spinner.Finish()
 		return fmt.Errorf("search failed: %w", err)
 	}
+
+	spinner.Finish()
 
 	// 6. Handle zero results.
 	if len(emails) == 0 {
@@ -108,7 +116,6 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	}
 
 	// 7. Print results.
-	format := output.Resolve(cmd)
 	if output.IsJSON(format) {
 		if err := output.PrintJSON(emails); err != nil {
 			return fmt.Errorf("formatting results: %w", err)

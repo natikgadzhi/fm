@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	"github.com/natikgadzhi/cli-kit/output"
+	"github.com/natikgadzhi/cli-kit/progress"
+	"github.com/natikgadzhi/cli-kit/table"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/table"
 	"github.com/natikgadzhi/fm/internal/verbose"
 	"github.com/spf13/cobra"
 )
@@ -72,9 +73,14 @@ func runList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("resolving mailbox: %w", err)
 	}
 
+	format := output.Resolve(cmd)
+
 	filter := jmap.SearchFilter{
 		InMailbox: mailboxID,
 	}
+
+	spinner := progress.NewSpinner("Fetching emails...", format)
+	spinner.Start()
 
 	ctx := cmd.Context()
 	emails, err := client.SearchEmails(ctx, filter, listLimit)
@@ -85,15 +91,17 @@ func runList(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "Warning: partial results — fetched %d of %d emails: %v\n",
 			partialErr.Fetched, partialErr.Total, partialErr.Err)
 	} else if err != nil {
+		spinner.Finish()
 		return fmt.Errorf("listing emails: %w", err)
 	}
+
+	spinner.Finish()
 
 	if len(emails) == 0 {
 		fmt.Fprintln(os.Stderr, "No emails found in the specified mailbox.")
 		return nil
 	}
 
-	format := output.Resolve(cmd)
 	if output.IsJSON(format) {
 		if err := output.PrintJSON(emails); err != nil {
 			return fmt.Errorf("formatting results: %w", err)
