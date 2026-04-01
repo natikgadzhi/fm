@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/natikgadzhi/cli-kit/output"
+	"github.com/natikgadzhi/fm/internal/table"
 )
 
 // Email represents a JMAP Email object with the fields we care about.
@@ -72,7 +72,7 @@ type SearchFilter struct {
 }
 
 // dateFormat is the human-friendly date format used in table output.
-const dateFormat = "Jan 02, 2006 3:04 PM"
+const dateFormat = "02 Jan 2006 15:04"
 
 // --- TableRenderer implementations for cli-kit/output ---
 
@@ -82,7 +82,7 @@ type EmailListRenderer struct {
 }
 
 // RenderTable renders a list of emails as a table with ID, ThreadID, Date, From, Subject columns.
-func (r *EmailListRenderer) RenderTable(t *output.Table) {
+func (r *EmailListRenderer) RenderTable(t *table.Table) {
 	t.Header("ID", "Thread ID", "Date", "From", "Subject")
 	for _, email := range r.Emails {
 		date := email.Date.Format(dateFormat)
@@ -97,7 +97,7 @@ type EmailRenderer struct {
 }
 
 // RenderTable renders a single email's full details as key-value rows.
-func (r *EmailRenderer) RenderTable(t *output.Table) {
+func (r *EmailRenderer) RenderTable(t *table.Table) {
 	e := r.Email
 	t.Header("Field", "Value")
 	t.Row("ID", e.Id)
@@ -127,7 +127,7 @@ type MailboxListRenderer struct {
 }
 
 // RenderTable renders mailboxes as a table with Name, Role, Unread, Total columns.
-func (r *MailboxListRenderer) RenderTable(t *output.Table) {
+func (r *MailboxListRenderer) RenderTable(t *table.Table) {
 	t.Header("Name", "Role", "Unread", "Total")
 	for _, mb := range r.Mailboxes {
 		role := mb.Role

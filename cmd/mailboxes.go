@@ -7,6 +7,7 @@ import (
 	"github.com/natikgadzhi/cli-kit/output"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
+	"github.com/natikgadzhi/fm/internal/table"
 	"github.com/spf13/cobra"
 )
 
@@ -42,9 +43,17 @@ func runMailboxes(cmd *cobra.Command, args []string) error {
 	})
 
 	format := output.Resolve(cmd)
-	renderer := &jmap.MailboxListRenderer{Mailboxes: mailboxes}
-	if err := output.Print(format, mailboxes, renderer); err != nil {
-		return fmt.Errorf("formatting mailboxes: %w", err)
+	if output.IsJSON(format) {
+		if err := output.PrintJSON(mailboxes); err != nil {
+			return fmt.Errorf("formatting mailboxes: %w", err)
+		}
+	} else {
+		t := table.New()
+		renderer := &jmap.MailboxListRenderer{Mailboxes: mailboxes}
+		renderer.RenderTable(t)
+		if err := t.Flush(); err != nil {
+			return fmt.Errorf("formatting mailboxes: %w", err)
+		}
 	}
 
 	return nil
