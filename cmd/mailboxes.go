@@ -5,9 +5,10 @@ import (
 	"sort"
 
 	"github.com/natikgadzhi/cli-kit/output"
+	"github.com/natikgadzhi/cli-kit/progress"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/table"
+	"github.com/natikgadzhi/cli-kit/table"
 	"github.com/spf13/cobra"
 )
 
@@ -30,9 +31,14 @@ func runMailboxes(cmd *cobra.Command, args []string) error {
 	}
 
 	client := jmap.NewClient(tok, clientOpts()...)
+	format := output.Resolve(cmd)
+
+	spinner := progress.NewSpinner("Fetching mailboxes", format)
+	spinner.Start()
 
 	ctx := cmd.Context()
 	mailboxes, err := client.GetMailboxes(ctx)
+	spinner.Finish()
 	if err != nil {
 		return fmt.Errorf("fetching mailboxes: %w", err)
 	}
@@ -42,7 +48,6 @@ func runMailboxes(cmd *cobra.Command, args []string) error {
 		return mailboxes[i].Name < mailboxes[j].Name
 	})
 
-	format := output.Resolve(cmd)
 	if output.IsJSON(format) {
 		if err := output.PrintJSON(mailboxes); err != nil {
 			return fmt.Errorf("formatting mailboxes: %w", err)

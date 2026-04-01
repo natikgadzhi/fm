@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	"github.com/natikgadzhi/cli-kit/output"
+	"github.com/natikgadzhi/cli-kit/progress"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/table"
+	"github.com/natikgadzhi/cli-kit/table"
 	"github.com/spf13/cobra"
 )
 
@@ -88,8 +89,13 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	filter = MergeFilterFlags(filter, searchFrom, searchTo, searchHasAttachment)
 
 	// 5. Call SearchEmails using the command context (supports Ctrl+C cancellation).
+	format := output.Resolve(cmd)
+	spinner := progress.NewSpinner("Searching emails", format)
+	spinner.Start()
+
 	ctx := cmd.Context()
 	emails, err := client.SearchEmails(ctx, filter, searchLimit)
+	spinner.Finish()
 
 	// Check for partial results — display what we got with a warning.
 	var partialErr *jmap.PartialResultError
@@ -108,7 +114,6 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	}
 
 	// 7. Print results.
-	format := output.Resolve(cmd)
 	if output.IsJSON(format) {
 		if err := output.PrintJSON(emails); err != nil {
 			return fmt.Errorf("formatting results: %w", err)

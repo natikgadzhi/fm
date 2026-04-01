@@ -8,10 +8,11 @@ import (
 
 	"github.com/natikgadzhi/cli-kit/derived"
 	"github.com/natikgadzhi/cli-kit/output"
+	"github.com/natikgadzhi/cli-kit/progress"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/cache"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/table"
+	"github.com/natikgadzhi/cli-kit/table"
 	"github.com/spf13/cobra"
 )
 
@@ -47,10 +48,14 @@ func runFetchThread(cmd *cobra.Command, args []string) error {
 
 	client := jmap.NewClient(tok, clientOpts()...)
 	ctx := cmd.Context()
+	format := output.Resolve(cmd)
 
 	// Fetch all emails in the thread, sorted chronologically.
 	// GetThreadEmails calls Discover internally.
+	spinner := progress.NewSpinner("Fetching thread", format)
+	spinner.Start()
 	emails, err := client.GetThreadEmails(ctx, threadID)
+	spinner.Finish()
 
 	// Check for partial results — display what we got with a warning.
 	var partialErr *jmap.PartialResultError
@@ -97,7 +102,6 @@ func runFetchThread(cmd *cobra.Command, args []string) error {
 	}
 
 	// Format and display all emails.
-	format := output.Resolve(cmd)
 	if output.IsJSON(format) {
 		if err := output.PrintJSON(emails); err != nil {
 			return fmt.Errorf("formatting thread emails: %w", err)

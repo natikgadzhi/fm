@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	"github.com/natikgadzhi/cli-kit/output"
+	"github.com/natikgadzhi/cli-kit/progress"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/table"
+	"github.com/natikgadzhi/cli-kit/table"
 	"github.com/natikgadzhi/fm/internal/verbose"
 	"github.com/spf13/cobra"
 )
@@ -66,9 +67,14 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 
 	client := jmap.NewClient(tok, clientOpts()...)
+	format := output.Resolve(cmd)
+
+	spinner := progress.NewSpinner("Fetching emails", format)
+	spinner.Start()
 
 	mailboxID, err := resolveMailboxArg(client, cmd, args[0])
 	if err != nil {
+		spinner.Finish()
 		return fmt.Errorf("resolving mailbox: %w", err)
 	}
 
@@ -78,6 +84,7 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	emails, err := client.SearchEmails(ctx, filter, listLimit)
+	spinner.Finish()
 
 	var partialErr *jmap.PartialResultError
 	if errors.As(err, &partialErr) {
@@ -93,7 +100,6 @@ func runList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	format := output.Resolve(cmd)
 	if output.IsJSON(format) {
 		if err := output.PrintJSON(emails); err != nil {
 			return fmt.Errorf("formatting results: %w", err)
