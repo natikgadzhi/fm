@@ -9,6 +9,7 @@ import (
 	"github.com/natikgadzhi/cli-kit/output"
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
+	"github.com/natikgadzhi/fm/internal/table"
 	"github.com/natikgadzhi/fm/internal/verbose"
 	"github.com/spf13/cobra"
 )
@@ -93,9 +94,17 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 
 	format := output.Resolve(cmd)
-	renderer := &jmap.EmailListRenderer{Emails: emails}
-	if err := output.Print(format, emails, renderer); err != nil {
-		return fmt.Errorf("formatting results: %w", err)
+	if output.IsJSON(format) {
+		if err := output.PrintJSON(emails); err != nil {
+			return fmt.Errorf("formatting results: %w", err)
+		}
+	} else {
+		t := table.New()
+		renderer := &jmap.EmailListRenderer{Emails: emails}
+		renderer.RenderTable(t)
+		if err := t.Flush(); err != nil {
+			return fmt.Errorf("formatting results: %w", err)
+		}
 	}
 
 	fmt.Fprintf(os.Stderr, "\nFound %d email(s).\n", len(emails))

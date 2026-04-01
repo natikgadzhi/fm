@@ -11,6 +11,7 @@ import (
 	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/cache"
 	"github.com/natikgadzhi/fm/internal/jmap"
+	"github.com/natikgadzhi/fm/internal/table"
 	"github.com/natikgadzhi/fm/internal/verbose"
 	"github.com/spf13/cobra"
 )
@@ -57,9 +58,17 @@ func runFetch(cmd *cobra.Command, args []string) error {
 	if !fetchNoCache && !fetchWithAttachments {
 		if cached, err := c.Get(emailID); err == nil && cached != nil {
 			verbose.Log("cache hit for email %s", emailID)
-			renderer := &jmap.EmailRenderer{Email: *cached}
-			if err := output.Print(format, *cached, renderer); err != nil {
-				return fmt.Errorf("formatting email: %w", err)
+			if output.IsJSON(format) {
+				if err := output.PrintJSON(*cached); err != nil {
+					return fmt.Errorf("formatting email: %w", err)
+				}
+			} else {
+				t := table.New()
+				renderer := &jmap.EmailRenderer{Email: *cached}
+				renderer.RenderTable(t)
+				if err := t.Flush(); err != nil {
+					return fmt.Errorf("formatting email: %w", err)
+				}
 			}
 			return nil
 		}
@@ -105,9 +114,17 @@ func runFetch(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	renderer := &jmap.EmailRenderer{Email: email}
-	if err := output.Print(format, email, renderer); err != nil {
-		return fmt.Errorf("formatting email: %w", err)
+	if output.IsJSON(format) {
+		if err := output.PrintJSON(email); err != nil {
+			return fmt.Errorf("formatting email: %w", err)
+		}
+	} else {
+		t := table.New()
+		renderer := &jmap.EmailRenderer{Email: email}
+		renderer.RenderTable(t)
+		if err := t.Flush(); err != nil {
+			return fmt.Errorf("formatting email: %w", err)
+		}
 	}
 	return nil
 }
