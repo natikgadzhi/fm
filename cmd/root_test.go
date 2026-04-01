@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	clierrors "github.com/natikgadzhi/cli-kit/errors"
-	"github.com/natikgadzhi/fm/internal/auth"
 )
 
 func TestExitCodeSuccess(t *testing.T) {
@@ -24,7 +23,7 @@ func TestExitCodeGeneralError(t *testing.T) {
 }
 
 func TestExitCodeAuthError(t *testing.T) {
-	err := &auth.AuthError{Message: "test auth error"}
+	err := clierrors.WrapAuth(errors.New("test"), "test auth error", "")
 	code := exitCode(err)
 	if code != clierrors.ExitAuthError {
 		t.Errorf("exitCode(auth error): got %d, want %d", code, clierrors.ExitAuthError)
@@ -32,7 +31,7 @@ func TestExitCodeAuthError(t *testing.T) {
 }
 
 func TestExitCodeWrappedAuthError(t *testing.T) {
-	inner := &auth.AuthError{Message: "inner auth error"}
+	inner := clierrors.WrapAuth(errors.New("test"), "inner auth error", "")
 	wrapped := errors.Join(errors.New("wrapper"), inner)
 	code := exitCode(wrapped)
 	if code != clierrors.ExitAuthError {

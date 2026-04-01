@@ -145,6 +145,7 @@ func TestDiscoverAuthFailure(t *testing.T) {
 
 func TestRetryOn429(t *testing.T) {
 	var attempts atomic.Int32
+	var retryCount atomic.Int32
 
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -153,7 +154,7 @@ func TestRetryOn429(t *testing.T) {
 	mux.HandleFunc("/jmap/session", func(w http.ResponseWriter, r *http.Request) {
 		count := attempts.Add(1)
 		if count <= 2 {
-			w.Header().Set("Retry-After", "1")
+			w.Header().Set("Retry-After", "0")
 			w.WriteHeader(http.StatusTooManyRequests)
 			w.Write([]byte(`{"type":"rate-limit","status":429,"detail":"slow down"}`))
 			return
@@ -162,13 +163,15 @@ func TestRetryOn429(t *testing.T) {
 		w.Write(sessionJSON(server.URL))
 	})
 
-	var totalSleep time.Duration
 	c := NewClient("fmu1-test-token",
 		WithBaseURL(server.URL+"/jmap/session"),
-		withSleepFn(func(d time.Duration) {
-			totalSleep += d
+		WithOnRetry(func(attempt int, delay time.Duration, statusCode int) {
+			retryCount.Add(1)
 		}),
 	)
+	// Use very short delays so the test is fast.
+	c.retryTransport.BaseDelay = 1 * time.Millisecond
+	c.retryTransport.MaxDelay = 1 * time.Millisecond
 
 	err := c.Discover()
 	if err != nil {
@@ -179,9 +182,8 @@ func TestRetryOn429(t *testing.T) {
 		t.Errorf("expected 3 attempts (2 retries + 1 success), got %d", count)
 	}
 
-	// Verify that sleep was called with ~1 second delays (from Retry-After header).
-	if totalSleep < 2*time.Second {
-		t.Errorf("expected total sleep >= 2s (from Retry-After), got %v", totalSleep)
+	if count := retryCount.Load(); count != 2 {
+		t.Errorf("expected 2 OnRetry callbacks, got %d", count)
 	}
 }
 
@@ -205,8 +207,9 @@ func TestRetryOn500(t *testing.T) {
 
 	c := NewClient("fmu1-test-token",
 		WithBaseURL(server.URL+"/jmap/session"),
-		withSleepFn(func(d time.Duration) {}), // no-op sleep for fast tests
 	)
+	c.retryTransport.BaseDelay = 1 * time.Millisecond
+	c.retryTransport.MaxDelay = 1 * time.Millisecond
 
 	err := c.Discover()
 	if err != nil {
@@ -231,8 +234,9 @@ func TestRetryMaxRetriesExhausted(t *testing.T) {
 	c := NewClient("fmu1-test-token",
 		WithBaseURL(server.URL+"/jmap/session"),
 		WithMaxRetries(3),
-		withSleepFn(func(d time.Duration) {}),
 	)
+	c.retryTransport.BaseDelay = 1 * time.Millisecond
+	c.retryTransport.MaxDelay = 1 * time.Millisecond
 
 	err := c.Discover()
 	if err == nil {
@@ -324,82 +328,3 @@ func TestDoRequest(t *testing.T) {
 	}
 }
 
-func TestParseRetryAfter(t *testing.T) {
-	tests := []struct {
-		name     string
-		value    string
-		wantMin  time.Duration
-		wantZero bool
-	}{
-		{
-			name:    "seconds",
-			value:   "5",
-			wantMin: 5 * time.Second,
-		},
-		{
-			name:    "seconds with whitespace",
-			value:   " 3 ",
-			wantMin: 3 * time.Second,
-		},
-		{
-			name:     "zero",
-			value:    "0",
-			wantZero: true,
-		},
-		{
-			name:     "negative",
-			value:    "-1",
-			wantZero: true,
-		},
-		{
-			name:     "empty",
-			value:    "",
-			wantZero: true,
-		},
-		{
-			name:     "garbage",
-			value:    "not-a-number",
-			wantZero: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := parseRetryAfter(tt.value)
-			if tt.wantZero && got != 0 {
-				t.Errorf("expected 0, got %v", got)
-			}
-			if !tt.wantZero && got < tt.wantMin {
-				t.Errorf("expected >= %v, got %v", tt.wantMin, got)
-			}
-		})
-	}
-}
-
-func TestIsRetryable(t *testing.T) {
-	tests := []struct {
-		code int
-		want bool
-	}{
-		{200, false},
-		{201, false},
-		{301, false},
-		{400, false},
-		{401, false},
-		{403, false},
-		{404, false},
-		{429, true},
-		{500, true},
-		{502, true},
-		{503, true},
-		{504, true},
-		{599, true},
-	}
-
-	for _, tt := range tests {
-		got := isRetryable(tt.code)
-		if got != tt.want {
-			t.Errorf("isRetryable(%d) = %v, want %v", tt.code, got, tt.want)
-		}
-	}
-}

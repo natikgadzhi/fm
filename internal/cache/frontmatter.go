@@ -1,16 +1,12 @@
 package cache
 
 import (
-	"bytes"
 	"fmt"
 
-	"gopkg.in/yaml.v3"
+	"github.com/natikgadzhi/cli-kit/derived"
 )
 
-// frontmatterDelimiter is the YAML frontmatter delimiter used in Markdown files.
-const frontmatterDelimiter = "---"
-
-// Frontmatter holds the YAML metadata for a cached email file.
+// Frontmatter holds the metadata for a cached email file.
 type Frontmatter struct {
 	Tool      string   `yaml:"tool"`
 	Object    string   `yaml:"object"`
@@ -29,47 +25,87 @@ type Frontmatter struct {
 
 // Marshal renders a Frontmatter struct as YAML frontmatter bytes,
 // including the leading and trailing "---" delimiters.
+// Uses cli-kit/derived.Render with a map[string]any representation.
 func Marshal(fm Frontmatter) ([]byte, error) {
-	yamlData, err := yaml.Marshal(fm)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling frontmatter: %w", err)
+	meta := map[string]any{
+		"tool":       fm.Tool,
+		"object":     fm.Object,
+		"id":         fm.Id,
+		"thread_id":  fm.ThreadId,
+		"message_id": fm.MessageId,
+		"from":       fm.From,
+		"to":         fm.To,
+		"subject":    fm.Subject,
+		"date":       fm.Date,
+		"mailbox":    fm.Mailbox,
+		"cached_at":  fm.CachedAt,
+		"source_url": fm.SourceURL,
+		"command":    fm.Command,
 	}
-
-	var buf bytes.Buffer
-	buf.WriteString(frontmatterDelimiter)
-	buf.WriteByte('\n')
-	buf.Write(yamlData)
-	buf.WriteString(frontmatterDelimiter)
-	buf.WriteByte('\n')
-
-	return buf.Bytes(), nil
+	return derived.Render(meta, nil), nil
 }
 
 // Unmarshal parses YAML frontmatter and the Markdown body from file content.
 // It returns the parsed Frontmatter, the body text after the frontmatter,
 // and any error encountered.
+// Uses cli-kit/derived.Parse for the parsing.
 func Unmarshal(data []byte) (*Frontmatter, string, error) {
-	content := string(data)
-
-	// The file must start with "---\n".
-	if len(content) < 4 || content[:4] != frontmatterDelimiter+"\n" {
-		return nil, "", fmt.Errorf("missing opening frontmatter delimiter")
+	meta, body, err := derived.Parse(data)
+	if err != nil {
+		return nil, "", err
+	}
+	if meta == nil {
+		return nil, "", fmt.Errorf("missing frontmatter")
 	}
 
-	// Find the closing delimiter.
-	rest := content[4:]
-	idx := bytes.Index([]byte(rest), []byte("\n"+frontmatterDelimiter+"\n"))
-	if idx < 0 {
-		return nil, "", fmt.Errorf("missing closing frontmatter delimiter")
+	fm := &Frontmatter{
+		Tool:      getString(meta, "tool"),
+		Object:    getString(meta, "object"),
+		Id:        getString(meta, "id"),
+		ThreadId:  getString(meta, "thread_id"),
+		MessageId: getString(meta, "message_id"),
+		From:      getString(meta, "from"),
+		Subject:   getString(meta, "subject"),
+		Date:      getString(meta, "date"),
+		Mailbox:   getString(meta, "mailbox"),
+		CachedAt:  getString(meta, "cached_at"),
+		SourceURL: getString(meta, "source_url"),
+		Command:   getString(meta, "command"),
+		To:        getStringSlice(meta, "to"),
 	}
 
-	yamlBlock := rest[:idx]
-	body := rest[idx+len("\n"+frontmatterDelimiter+"\n"):]
+	return fm, string(body), nil
+}
 
-	var fm Frontmatter
-	if err := yaml.Unmarshal([]byte(yamlBlock), &fm); err != nil {
-		return nil, "", fmt.Errorf("parsing frontmatter YAML: %w", err)
+// getString extracts a string value from a map.
+func getString(m map[string]any, key string) string {
+	v, ok := m[key]
+	if !ok {
+		return ""
 	}
+	s, ok := v.(string)
+	if !ok {
+		return fmt.Sprintf("%v", v)
+	}
+	return s
+}
 
-	return &fm, body, nil
+// getStringSlice extracts a string slice from a map.
+func getStringSlice(m map[string]any, key string) []string {
+	v, ok := m[key]
+	if !ok {
+		return nil
+	}
+	switch val := v.(type) {
+	case []any:
+		result := make([]string, 0, len(val))
+		for _, item := range val {
+			result = append(result, fmt.Sprintf("%v", item))
+		}
+		return result
+	case []string:
+		return val
+	default:
+		return nil
+	}
 }

@@ -6,11 +6,11 @@ import (
 	"os"
 	"strings"
 
+	cliauth "github.com/natikgadzhi/cli-kit/auth"
 	"github.com/natikgadzhi/cli-kit/derived"
 	"github.com/natikgadzhi/cli-kit/output"
 	"github.com/natikgadzhi/cli-kit/progress"
 	"github.com/natikgadzhi/cli-kit/table"
-	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/cache"
 	"github.com/natikgadzhi/fm/internal/jmap"
 	"github.com/spf13/cobra"
@@ -41,7 +41,7 @@ func init() {
 func runFetchThread(cmd *cobra.Command, args []string) error {
 	threadID := args[0]
 
-	tok, _, err := auth.ResolveToken(token)
+	tok, _, err := cliauth.ResolveToken(tokenSource())
 	if err != nil {
 		return err
 	}

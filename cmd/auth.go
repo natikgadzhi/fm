@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/natikgadzhi/fm/internal/auth"
+	cliauth "github.com/natikgadzhi/cli-kit/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -83,20 +83,20 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 	}
 
 	// Soft format validation.
-	if !strings.HasPrefix(tokenInput, auth.TokenPrefix) {
-		fmt.Fprintf(os.Stderr, "Warning: token does not start with %q — it may not be a valid Fastmail API token.\n", auth.TokenPrefix)
+	if !strings.HasPrefix(tokenInput, TokenPrefix) {
+		fmt.Fprintf(os.Stderr, "Warning: token does not start with %q — it may not be a valid Fastmail API token.\n", TokenPrefix)
 	}
 
-	if err := auth.StoreToken(tokenInput); err != nil {
+	if err := cliauth.StoreToken(keychainService, keychainKey, tokenInput); err != nil {
 		return fmt.Errorf("storing token in keychain: %w", err)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Token stored in OS keychain. Masked: %s\n", auth.MaskToken(tokenInput))
+	fmt.Fprintf(cmd.OutOrStdout(), "Token stored in OS keychain. Masked: %s\n", cliauth.MaskToken(tokenInput))
 	return nil
 }
 
 func runAuthCheck(cmd *cobra.Command, args []string) error {
-	tok, source, err := auth.ResolveToken(token)
+	tok, source, err := cliauth.ResolveToken(tokenSource())
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func runAuthCheck(cmd *cobra.Command, args []string) error {
 
 	w := cmd.OutOrStdout()
 	fmt.Fprintf(w, "Token source: %s\n", source)
-	fmt.Fprintf(w, "Token:        %s\n", auth.MaskToken(tok))
+	fmt.Fprintf(w, "Token:        %s\n", cliauth.MaskToken(tok))
 
 	accountID, err := client.PrimaryAccountID()
 	if err == nil {
@@ -123,7 +123,7 @@ func runAuthCheck(cmd *cobra.Command, args []string) error {
 }
 
 func runAuthLogout(cmd *cobra.Command, args []string) error {
-	if err := auth.DeleteToken(); err != nil {
+	if err := cliauth.DeleteToken(keychainService, keychainKey); err != nil {
 		return fmt.Errorf("removing token from keychain: %w", err)
 	}
 

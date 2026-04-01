@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/natikgadzhi/fm/internal/auth"
+	clierrors "github.com/natikgadzhi/cli-kit/errors"
 )
 
 func TestClassifyErrorNil(t *testing.T) {
@@ -15,20 +15,26 @@ func TestClassifyErrorNil(t *testing.T) {
 
 func TestClassifyError401(t *testing.T) {
 	err := classifyError(errors.New("HTTP 401 Unauthorized"))
-	var authErr *auth.AuthError
-	if !errors.As(err, &authErr) {
-		t.Fatal("401 error should be classified as AuthError")
+	var cliErr *clierrors.CLIError
+	if !errors.As(err, &cliErr) {
+		t.Fatal("401 error should be classified as CLIError")
 	}
-	if authErr.Message == "" {
-		t.Error("AuthError message should not be empty")
+	if cliErr.Message == "" {
+		t.Error("CLIError message should not be empty")
+	}
+	if cliErr.ExitCode != clierrors.ExitAuthError {
+		t.Errorf("expected exit code %d, got %d", clierrors.ExitAuthError, cliErr.ExitCode)
 	}
 }
 
 func TestClassifyErrorUnauthorized(t *testing.T) {
 	err := classifyError(errors.New("server returned Unauthorized"))
-	var authErr *auth.AuthError
-	if !errors.As(err, &authErr) {
-		t.Fatal("Unauthorized error should be classified as AuthError")
+	var cliErr *clierrors.CLIError
+	if !errors.As(err, &cliErr) {
+		t.Fatal("Unauthorized error should be classified as CLIError")
+	}
+	if cliErr.ExitCode != clierrors.ExitAuthError {
+		t.Errorf("expected exit code %d, got %d", clierrors.ExitAuthError, cliErr.ExitCode)
 	}
 }
 

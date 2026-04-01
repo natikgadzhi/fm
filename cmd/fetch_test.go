@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/natikgadzhi/fm/internal/auth"
+	cliauth "github.com/natikgadzhi/cli-kit/auth"
 	"github.com/natikgadzhi/fm/internal/cache"
 	"github.com/natikgadzhi/fm/internal/jmap"
 	"github.com/zalando/go-keyring"
@@ -134,10 +134,9 @@ func TestFetchNoCacheSkipsCache(t *testing.T) {
 		t.Fatal("expected error when --no-cache is set and no token is available")
 	}
 
-	// The error should be an auth error (missing token).
-	var authErr *auth.AuthError
-	if !errors.As(err, &authErr) {
-		t.Errorf("expected AuthError, got: %v", err)
+	// The error should indicate no token was found (from cli-kit/auth).
+	if !errors.Is(err, cliauth.ErrNoToken) {
+		t.Errorf("expected ErrNoToken, got: %v", err)
 	}
 }
 

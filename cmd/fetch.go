@@ -6,14 +6,14 @@ import (
 	"os"
 	"path/filepath"
 
+	cliauth "github.com/natikgadzhi/cli-kit/auth"
+	"github.com/natikgadzhi/cli-kit/debug"
 	"github.com/natikgadzhi/cli-kit/derived"
 	"github.com/natikgadzhi/cli-kit/output"
 	"github.com/natikgadzhi/cli-kit/progress"
 	"github.com/natikgadzhi/cli-kit/table"
-	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/cache"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/verbose"
 	"github.com/spf13/cobra"
 )
 
@@ -58,7 +58,7 @@ func runFetch(cmd *cobra.Command, args []string) error {
 	// are empty), so we must always fetch from the API to get blob IDs.
 	if !fetchNoCache && !fetchWithAttachments {
 		if cached, err := c.Get(emailID); err == nil && cached != nil {
-			verbose.Log("cache hit for email %s", emailID)
+			debug.Log("cache hit for email %s", emailID)
 			if output.IsJSON(format) {
 				if err := output.PrintJSON(*cached); err != nil {
 					return fmt.Errorf("formatting email: %w", err)
@@ -73,11 +73,11 @@ func runFetch(cmd *cobra.Command, args []string) error {
 			}
 			return nil
 		}
-		verbose.Log("cache miss for email %s", emailID)
+		debug.Log("cache miss for email %s", emailID)
 	}
 
 	// Resolve token and create JMAP client.
-	tok, _, err := auth.ResolveToken(token)
+	tok, _, err := cliauth.ResolveToken(tokenSource())
 	if err != nil {
 		return err
 	}

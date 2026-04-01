@@ -6,10 +6,10 @@ import (
 	"os"
 	"strings"
 
+	cliauth "github.com/natikgadzhi/cli-kit/auth"
 	"github.com/natikgadzhi/cli-kit/output"
 	"github.com/natikgadzhi/cli-kit/progress"
 	"github.com/natikgadzhi/cli-kit/table"
-	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
 	"github.com/spf13/cobra"
 )
@@ -70,7 +70,7 @@ func MergeFilterFlags(filter jmap.SearchFilter, from, to string, hasAttachments 
 
 func runSearch(cmd *cobra.Command, args []string) error {
 	// 1. Resolve token.
-	tok, _, err := auth.ResolveToken(token)
+	tok, _, err := cliauth.ResolveToken(tokenSource())
 	if err != nil {
 		return err
 	}

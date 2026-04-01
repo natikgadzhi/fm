@@ -6,12 +6,12 @@ import (
 	"os"
 	"strings"
 
+	cliauth "github.com/natikgadzhi/cli-kit/auth"
+	"github.com/natikgadzhi/cli-kit/debug"
 	"github.com/natikgadzhi/cli-kit/output"
 	"github.com/natikgadzhi/cli-kit/progress"
 	"github.com/natikgadzhi/cli-kit/table"
-	"github.com/natikgadzhi/fm/internal/auth"
 	"github.com/natikgadzhi/fm/internal/jmap"
-	"github.com/natikgadzhi/fm/internal/verbose"
 	"github.com/spf13/cobra"
 )
 
@@ -46,14 +46,14 @@ func resolveMailboxArg(client *jmap.Client, cmd *cobra.Command, arg string) (str
 
 	id, err := client.ResolveMailbox(ctx, arg)
 	if err == nil {
-		verbose.Log("Resolved mailbox %q to ID %s", arg, id)
+		debug.Log("Resolved mailbox %q to ID %s", arg, id)
 		return id, nil
 	}
 
 	// Only fall back to raw ID if the mailbox wasn't found by name.
 	// Propagate network, auth, and other errors so the user sees the real issue.
 	if strings.Contains(err.Error(), "not found") {
-		verbose.Log("Mailbox %q not found by name/role, using as raw ID", arg)
+		debug.Log("Mailbox %q not found by name/role, using as raw ID", arg)
 		return arg, nil
 	}
 
@@ -61,7 +61,7 @@ func resolveMailboxArg(client *jmap.Client, cmd *cobra.Command, arg string) (str
 }
 
 func runList(cmd *cobra.Command, args []string) error {
-	tok, _, err := auth.ResolveToken(token)
+	tok, _, err := cliauth.ResolveToken(tokenSource())
 	if err != nil {
 		return err
 	}
