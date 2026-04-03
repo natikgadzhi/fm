@@ -138,6 +138,103 @@ func (r *MailboxListRenderer) RenderTable(t *output.Table) {
 	}
 }
 
+// CalendarListRenderer wraps a slice of calendars for table rendering.
+type CalendarListRenderer struct {
+	Calendars []Calendar
+}
+
+// RenderTable renders calendars as a table with Name, Color, Description, Read-only columns.
+func (r *CalendarListRenderer) RenderTable(t *output.Table) {
+	t.Header("Name", "Color", "Description", "Read-only")
+	for _, cal := range r.Calendars {
+		readOnly := "no"
+		if cal.IsReadOnly {
+			readOnly = "yes"
+		}
+		t.Row(cal.Name, cal.Color, cal.Description, readOnly)
+	}
+}
+
+// CalendarEventListRenderer wraps a slice of calendar events for table rendering.
+type CalendarEventListRenderer struct {
+	Events []CalendarEvent
+}
+
+// RenderTable renders a list of calendar events as a table.
+func (r *CalendarEventListRenderer) RenderTable(t *output.Table) {
+	t.Header("ID", "Start", "Duration", "Title", "Location")
+	for _, evt := range r.Events {
+		loc := evt.Location
+		if len(loc) > 40 {
+			loc = loc[:37] + "..."
+		}
+		t.Row(evt.Id, evt.Start, evt.Duration, evt.Title, loc)
+	}
+}
+
+// CalendarEventRenderer wraps a single calendar event for table rendering.
+type CalendarEventRenderer struct {
+	Event CalendarEvent
+}
+
+// RenderTable renders a single calendar event's full details as key-value rows.
+func (r *CalendarEventRenderer) RenderTable(t *output.Table) {
+	e := r.Event
+	t.Header("Field", "Value")
+	t.Row("ID", e.Id)
+	t.Row("Title", e.Title)
+	t.Row("Start", e.Start)
+	t.Row("Time Zone", e.TimeZone)
+	t.Row("Duration", e.Duration)
+	if e.Location != "" {
+		t.Row("Location", e.Location)
+	}
+	if e.Status != "" {
+		t.Row("Status", e.Status)
+	}
+
+	// Attendees.
+	if len(e.Participants) > 0 {
+		var attendees []string
+		for _, p := range e.Participants {
+			if p.Email != "" {
+				if p.Name != "" {
+					attendees = append(attendees, fmt.Sprintf("%s <%s>", p.Name, p.Email))
+				} else {
+					attendees = append(attendees, p.Email)
+				}
+			}
+		}
+		if len(attendees) > 0 {
+			t.Row("Attendees", strings.Join(attendees, ", "))
+		}
+	}
+
+	// Recurrence.
+	if len(e.RecurrenceRules) > 0 {
+		var rules []string
+		for _, rr := range e.RecurrenceRules {
+			rule := rr.Frequency
+			if rr.Interval > 1 {
+				rule = fmt.Sprintf("Every %d %s", rr.Interval, rr.Frequency)
+			}
+			if rr.Until != "" {
+				rule += " until " + rr.Until
+			}
+			if rr.Count > 0 {
+				rule += fmt.Sprintf(" (%d times)", rr.Count)
+			}
+			rules = append(rules, rule)
+		}
+		t.Row("Recurrence", strings.Join(rules, "; "))
+	}
+
+	if e.Description != "" {
+		t.Row("", "")
+		t.Row("Description", e.Description)
+	}
+}
+
 // displayAddress returns a display string for the first address in the list.
 func displayAddress(addrs []Address) string {
 	if len(addrs) == 0 {
